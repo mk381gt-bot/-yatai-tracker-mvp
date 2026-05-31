@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>屋台トラッカー 送信用</title>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f1e8;
+      --card: #fffaf0;
+      --ink: #1f2933;
+      --muted: #5b6470;
+      --line: #dacfb9;
+      --accent: #b63224;
+      --accent-dark: #872218;
+      --ok-bg: #e6f4ea;
+      --ok-line: #2f855a;
+      --warn-bg: #fff3cd;
+      --warn-line: #d39e00;
+      --err-bg: #fde8e8;
+      --err-line: #c53030;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    header {
+      padding: 16px 18px 12px;
+      background: #8f241b;
+      color: #fffaf0;
+      border-bottom: 4px solid #d7a83d;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      font-size: 15px;
+      line-height: 1.5;
+      opacity: 0.94;
+    }
+
+    main {
+      width: 100%;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .card,
+    .message,
+    .notice {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+      box-shadow: 0 1px 2px rgba(31, 41, 51, 0.08);
+    }
+
+    .card {
+      padding: 16px;
+    }
+
+    .field {
+      display: grid;
+      gap: 7px;
+      margin-bottom: 14px;
+    }
+
+    label,
+    .label {
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    input,
+    select {
+      width: 100%;
+      min-height: 48px;
+      padding: 10px 12px;
+      border: 1px solid #cfc3ad;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 18px;
+    }
+
+    .button-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      width: 100%;
+      min-height: 54px;
+      border: 0;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 18px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+    }
+
+    .primary {
+      background: var(--accent);
+      color: #fffaf0;
+    }
+
+    .primary:active {
+      background: var(--accent-dark);
+    }
+
+    .secondary {
+      background: #ffffff;
+      color: var(--ink);
+      border: 1px solid #cfc3ad;
+    }
+
+    .danger {
+      background: #5b6470;
+      color: #ffffff;
+    }
+
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .status-item {
+      padding: 12px;
+      border: 1px solid #eadfca;
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    .status-value {
+      margin: 4px 0 0;
+      font-size: 20px;
+      line-height: 1.4;
+      font-weight: 800;
+      overflow-wrap: anywhere;
+    }
+
+    .message,
+    .notice {
+      padding: 14px 16px;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .message {
+      display: none;
+      font-weight: 800;
+    }
+
+    .message.is-visible {
+      display: block;
+    }
+
+    .message.ok {
+      background: var(--ok-bg);
+      border-color: var(--ok-line);
+      color: #1f5f3d;
+    }
+
+    .message.warn {
+      background: var(--warn-bg);
+      border-color: var(--warn-line);
+      color: #5f4300;
+    }
+
+    .message.err {
+      background: var(--err-bg);
+      border-color: var(--err-line);
+      color: #7b1e1e;
+    }
+
+    .notice {
+      background: #fffaf0;
+    }
+
+    @media (min-width: 640px) {
+      header {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      .button-row {
+        grid-template-columns: repeat(3, 1fr);
+      }
+
+      .status-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>屋台トラッカー 送信用</h1>
+    <p class="subtitle">山車側スマホから現在位置を送信します</p>
+  </header>
+
+  <main>
+    <section class="card" aria-label="送信設定">
+      <div class="field">
+        <label for="dashiId">山車ID</label>
+        <input id="dashiId" autocomplete="off">
+      </div>
+
+      <div class="field">
+        <label for="dashiName">山車名</label>
+        <input id="dashiName" autocomplete="off" value="〇〇屋台">
+      </div>
+
+      <div class="field">
+        <label for="dashiStatus">状況</label>
+        <select id="dashiStatus">
+          <option value="巡行中">巡行中</option>
+          <option value="待機中">待機中</option>
+          <option value="休憩中">休憩中</option>
+          <option value="終了">終了</option>
+        </select>
+      </div>
+
+      <div class="button-row">
+        <button class="primary" id="startButton" type="button">送信開始</button>
+        <button class="secondary" id="gpsCheckButton" type="button">GPS状態確認</button>
+        <button class="danger" id="stopButton" type="button" disabled>停止</button>
+      </div>
+    </section>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <section class="card" aria-label="送信状況">
+      <div class="status-grid">
+        <div class="status-item">
+          <div class="label">送信状態</div>
+          <p class="status-value" id="sendState">停止中</p>
+        </div>
+        <div class="status-item">
+          <div class="label">GPS取得状態</div>
+          <p class="status-value" id="gpsState">未取得</p>
+        </div>
+        <div class="status-item">
+          <div class="label">最終送信</div>
+          <p class="status-value" id="lastSentAt">未送信</p>
+        </div>
+        <div class="status-item">
+          <div class="label">前回送信から</div>
+          <p class="status-value" id="elapsedValue">未送信</p>
+        </div>
+        <div class="status-item">
+          <div class="label">緯度</div>
+          <p class="status-value" id="latValue">未取得</p>
+        </div>
+        <div class="status-item">
+          <div class="label">経度</div>
+          <p class="status-value" id="lngValue">未取得</p>
+        </div>
+        <div class="status-item">
+          <div class="label">GPS精度</div>
+          <p class="status-value" id="accuracyValue">未取得</p>
+        </div>
+        <div class="status-item">
+          <div class="label">前回送信地点から</div>
+          <p class="status-value" id="distanceValue">未送信</p>
+        </div>
+        <div class="status-item">
+          <div class="label">Wake Lock状態</div>
+          <p class="status-value" id="wakeLockValue">未確認</p>
+        </div>
+        <div class="status-item">
+          <div class="label">送信先</div>
+          <p class="status-value" id="pathValue">確認中</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="notice" aria-label="注意書き">
+      このページを閉じたり、スマホがスリープすると、位置送信が止まる可能性があります。<br>
+      当日はモバイルバッテリーを接続し、画面を開いたまま運用してください。<br>
+      GPS位置は、電波状況や端末性能により実際の山車位置とずれる場合があります。
+    </section>
+  </main>
+
+  <script>
+    /*
+      テスト手順:
+      1. view.html を別タブまたは別スマホで開く
+      2. sender.html?id=dashi01 をスマホで開く
+      3. 送信開始を押す
+      4. 位置情報の利用を許可する
+      5. Firebaseの dashiLocations/dashi01 の lat / lng / updatedAt が変わることを確認する
+      6. view.html 側のマーカーがリロードなしで動くことを確認する
+      7. 送信停止を押して、送信が止まることを確認する
+    */
+
+    /*
+      Firebase設定です。
+      Step 1 の view.html と同じFirebaseプロジェクトへ書き込みます。
+      別プロジェクトを使う場合は、ここをFirebaseコンソールの設定値に置き換えてください。
+    */
+    const firebaseConfig = {
+      apiKey: "AIzaSyAyjY-UCisOurFJnLD4FD2cvYgX251SVeU",
+      authDomain: "yatai-tracker-mvp.firebaseapp.com",
+      databaseURL: "https://yatai-tracker-mvp-default-rtdb.firebaseio.com",
+      projectId: "yatai-tracker-mvp",
+      storageBucket: "yatai-tracker-mvp.firebasestorage.app",
+      messagingSenderId: "285283040023",
+      appId: "1:285283040023:web:af6de79936a5d0db321552"
+    };
+
+    const DEFAULT_DASHI_ID = "dashi01";
+    const MIN_SEND_DISTANCE_METERS = 5;
+    const MIN_SEND_INTERVAL_MS = 30 * 1000;
+    const params = new URLSearchParams(window.location.search);
+    const initialDashiId = params.get("id") || DEFAULT_DASHI_ID;
+
+    const elements = {
+      dashiId: document.getElementById("dashiId"),
+      dashiName: document.getElementById("dashiName"),
+      dashiStatus: document.getElementById("dashiStatus"),
+      startButton: document.getElementById("startButton"),
+      gpsCheckButton: document.getElementById("gpsCheckButton"),
+      stopButton: document.getElementById("stopButton"),
+      message: document.getElementById("message"),
+      sendState: document.getElementById("sendState"),
+      gpsState: document.getElementById("gpsState"),
+      lastSentAt: document.getElementById("lastSentAt"),
+      elapsedValue: document.getElementById("elapsedValue"),
+      latValue: document.getElementById("latValue"),
+      lngValue: document.getElementById("lngValue"),
+      accuracyValue: document.getElementById("accuracyValue"),
+      distanceValue: document.getElementById("distanceValue"),
+      wakeLockValue: document.getElementById("wakeLockValue"),
+      pathValue: document.getElementById("pathValue")
+    };
+
+    let databaseModule = null;
+    let database = null;
+    let watchId = null;
+    let isSending = false;
+    let wakeLock = null;
+    let lastSentLocation = null;
+    let lastSentAt = null;
+    let latestLocation = null;
+
+    elements.dashiId.value = initialDashiId;
+    updatePathLabel();
+
+    elements.dashiId.addEventListener("input", updatePathLabel);
+    elements.startButton.addEventListener("click", startSending);
+    elements.gpsCheckButton.addEventListener("click", checkGpsStatus);
+    elements.stopButton.addEventListener("click", stopSending);
+
+    function updatePathLabel() {
+      const dashiId = getDashiId();
+      elements.pathValue.textContent = `dashiLocations/${dashiId}`;
+    }
+
+    function getDashiId() {
+      const value = elements.dashiId.value.trim();
+      return value || DEFAULT_DASHI_ID;
+    }
+
+    function showMessage(type, text) {
+      elements.message.className = `message ${type} is-visible`;
+      elements.message.textContent = text;
+    }
+
+    function appendMessage(type, text) {
+      const current = elements.message.textContent;
+      showMessage(type, current ? `${current} ${text}` : text);
+    }
+
+    function formatDateTime(timestamp) {
+      return new Intl.DateTimeFormat("ja-JP", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }).format(new Date(timestamp));
+    }
+
+    function isFirebaseConfigMissing(config) {
+      return Object.values(config).some((value) => {
+        return typeof value !== "string" || value.trim() === "" || value.includes("ここに");
+      });
+    }
+
+    async function prepareFirebase() {
+      if (database) {
+        return;
+      }
+
+      if (isFirebaseConfigMissing(firebaseConfig)) {
+        throw new Error("Firebase設定が未入力です。sender.html内の firebaseConfig を確認してください。");
+      }
+
+      const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+      databaseModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
+      const app = appModule.initializeApp(firebaseConfig);
+      database = databaseModule.getDatabase(app);
+    }
+
+    async function requestWakeLock() {
+      if (!("wakeLock" in navigator)) {
+        elements.wakeLockValue.textContent = "非対応";
+        appendMessage("warn", "この端末では画面スリープ防止が使えません。");
+        return;
+      }
+
+      try {
+        wakeLock = await navigator.wakeLock.request("screen");
+        elements.wakeLockValue.textContent = "有効";
+        wakeLock.addEventListener("release", () => {
+          elements.wakeLockValue.textContent = isSending ? "解除されました" : "停止中";
+        });
+      } catch (error) {
+        elements.wakeLockValue.textContent = "失敗";
+        appendMessage("warn", "画面スリープ防止を有効にできませんでした。GPS送信は続けます。");
+      }
+    }
+
+    async function releaseWakeLock() {
+      if (!wakeLock) {
+        elements.wakeLockValue.textContent = "停止中";
+        return;
+      }
+
+      try {
+        await wakeLock.release();
+      } catch (error) {
+        // Wake Lock解除失敗は送信停止の妨げにしない。
+      } finally {
+        wakeLock = null;
+        elements.wakeLockValue.textContent = "停止中";
+      }
+    }
+
+    function getCurrentPosition() {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error("この端末では位置情報を取得できません。"));
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 5000
+        });
+      });
+    }
+
+    function toLocation(position) {
+      return {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        receivedAt: Date.now()
+      };
+    }
+
+    function calculateDistanceMeters(from, to) {
+      if (!from || !to) {
+        return null;
+      }
+
+      const earthRadius = 6371000;
+      const fromLat = toRadians(from.lat);
+      const toLat = toRadians(to.lat);
+      const deltaLat = toRadians(to.lat - from.lat);
+      const deltaLng = toRadians(to.lng - from.lng);
+      const a =
+        Math.sin(deltaLat / 2) * Math.sin(deltaLat / 2) +
+        Math.cos(fromLat) * Math.cos(toLat) *
+        Math.sin(deltaLng / 2) * Math.sin(deltaLng / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return earthRadius * c;
+    }
+
+    function toRadians(degrees) {
+      return degrees * Math.PI / 180;
+    }
+
+    function updateLocationDisplay(location) {
+      latestLocation = location;
+      elements.gpsState.textContent = "取得成功";
+      elements.latValue.textContent = location.lat.toFixed(6);
+      elements.lngValue.textContent = location.lng.toFixed(6);
+      elements.accuracyValue.textContent = Number.isFinite(location.accuracy)
+        ? `${Math.round(location.accuracy)}m`
+        : "不明";
+
+      const distance = calculateDistanceMeters(lastSentLocation, location);
+      elements.distanceValue.textContent = distance === null
+        ? "初回送信待ち"
+        : `${distance.toFixed(1)}m`;
+
+      updateElapsedDisplay();
+    }
+
+    function updateElapsedDisplay() {
+      if (!lastSentAt) {
+        elements.elapsedValue.textContent = "未送信";
+        return;
+      }
+
+      const elapsedSeconds = Math.max(0, Math.floor((Date.now() - lastSentAt) / 1000));
+      elements.elapsedValue.textContent = `${elapsedSeconds}秒`;
+    }
+
+    function shouldSendLocation(location) {
+      if (!lastSentLocation || !lastSentAt) {
+        return {
+          shouldSend: true,
+          reason: "初回送信"
+        };
+      }
+
+      const elapsedMs = Date.now() - lastSentAt;
+      const distance = calculateDistanceMeters(lastSentLocation, location);
+
+      if (distance >= MIN_SEND_DISTANCE_METERS) {
+        return {
+          shouldSend: true,
+          reason: `${distance.toFixed(1)}m移動`
+        };
+      }
+
+      if (elapsedMs >= MIN_SEND_INTERVAL_MS) {
+        return {
+          shouldSend: true,
+          reason: "30秒経過"
+        };
+      }
+
+      return {
+        shouldSend: false,
+        reason: "送信条件待ち"
+      };
+    }
+
+    async function writeLocation(location, reason) {
+      await prepareFirebase();
+
+      const now = Date.now();
+      const dashiId = getDashiId();
+      const locationRef = databaseModule.ref(database, `dashiLocations/${dashiId}`);
+
+      await databaseModule.update(locationRef, {
+        name: elements.dashiName.value.trim() || dashiId,
+        lat: location.lat,
+        lng: location.lng,
+        status: elements.dashiStatus.value,
+        updatedAt: now
+      });
+
+      lastSentLocation = {
+        lat: location.lat,
+        lng: location.lng
+      };
+      lastSentAt = now;
+      elements.lastSentAt.textContent = formatDateTime(now);
+      elements.sendState.textContent = isSending ? "送信中" : "1回送信済み";
+      elements.distanceValue.textContent = "0.0m";
+      updateElapsedDisplay();
+      updatePathLabel();
+      showMessage("ok", `位置情報をFirebaseへ送信しました。理由: ${reason}`);
+    }
+
+    async function handlePosition(position) {
+      const location = toLocation(position);
+      updateLocationDisplay(location);
+
+      const decision = shouldSendLocation(location);
+
+      if (!decision.shouldSend) {
+        elements.sendState.textContent = isSending ? "送信中・条件待ち" : "停止中";
+        return;
+      }
+
+      try {
+        await writeLocation(location, decision.reason);
+      } catch (error) {
+        showMessage("err", error.message || "Firebase書き込みに失敗しました。");
+        elements.sendState.textContent = isSending ? "送信中・書き込み失敗" : "書き込み失敗";
+      }
+    }
+
+    function handlePositionError(error) {
+      const messages = {
+        1: "位置情報の利用が許可されていません。ブラウザの位置情報許可を確認してください。",
+        2: "現在位置を取得できません。電波状況やGPS設定を確認してください。",
+        3: "位置情報の取得が時間切れになりました。屋外で再試行してください。"
+      };
+      showMessage("err", messages[error.code] || error.message || "位置情報の取得に失敗しました。");
+      elements.gpsState.textContent = "取得失敗";
+      elements.sendState.textContent = isSending ? "送信中・取得失敗" : "停止中";
+    }
+
+    async function checkGpsStatus() {
+      try {
+        elements.sendState.textContent = isSending ? "送信中" : "停止中";
+        elements.gpsState.textContent = "取得中";
+        showMessage("warn", "現在位置を取得しています。少し待ってください。");
+        const position = await getCurrentPosition();
+        updateLocationDisplay(toLocation(position));
+        elements.gpsState.textContent = "取得成功";
+        showMessage("ok", "GPS位置を取得できました。送信開始を押すとFirebaseへの送信を開始します。");
+      } catch (error) {
+        handlePositionError(error);
+      }
+    }
+
+    async function startSending() {
+      if (watchId !== null) {
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        showMessage("err", "この端末では位置情報を取得できません。");
+        return;
+      }
+
+      try {
+        await prepareFirebase();
+      } catch (error) {
+        showMessage("err", error.message || "Firebaseの初期化に失敗しました。");
+        return;
+      }
+
+      isSending = true;
+      elements.sendState.textContent = "送信中";
+      elements.gpsState.textContent = "取得開始";
+      elements.startButton.disabled = true;
+      elements.gpsCheckButton.disabled = true;
+      elements.stopButton.disabled = false;
+      showMessage("warn", "位置情報の送信を開始しました。この画面を開いたままにしてください。");
+      await requestWakeLock();
+
+      watchId = navigator.geolocation.watchPosition(
+        async (position) => {
+          await handlePosition(position);
+        },
+        handlePositionError,
+        {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 5000
+        }
+      );
+    }
+
+    async function stopSending() {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        watchId = null;
+      }
+
+      isSending = false;
+      elements.sendState.textContent = "停止中";
+      elements.startButton.disabled = false;
+      elements.gpsCheckButton.disabled = false;
+      elements.stopButton.disabled = true;
+      await releaseWakeLock();
+      showMessage("warn", "位置情報の送信を停止しました。");
+    }
+
+    document.addEventListener("visibilitychange", async () => {
+      if (document.visibilityState === "visible" && isSending && !wakeLock) {
+        await requestWakeLock();
+      }
+    });
+
+    setInterval(updateElapsedDisplay, 1000);
+  </script>
+</body>
+</html>

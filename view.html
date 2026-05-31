@@ -1,0 +1,534 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>屋台トラッカー</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f1e8;
+      --card: #fffaf0;
+      --ink: #1f2933;
+      --muted: #5b6470;
+      --line: #dacfb9;
+      --accent: #b63224;
+      --accent-dark: #872218;
+      --warning-bg: #fff3cd;
+      --warning-line: #d39e00;
+      --error-bg: #fde8e8;
+      --error-line: #c53030;
+      --ok-bg: #e6f4ea;
+      --ok-line: #2f855a;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    .app {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      padding: 16px 18px 12px;
+      background: #8f241b;
+      color: #fffaf0;
+      border-bottom: 4px solid #d7a83d;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+      letter-spacing: 0;
+    }
+
+    .subtitle {
+      margin: 6px 0 0;
+      font-size: 15px;
+      line-height: 1.5;
+      opacity: 0.94;
+    }
+
+    main {
+      width: 100%;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 14px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .info-card,
+    .notice,
+    .message {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+      box-shadow: 0 1px 2px rgba(31, 41, 51, 0.08);
+    }
+
+    .info-card {
+      padding: 16px;
+    }
+
+    .label {
+      margin: 0 0 6px;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .dashi-name {
+      margin: 0;
+      font-size: 28px;
+      line-height: 1.25;
+      font-weight: 800;
+    }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .info-item {
+      padding: 12px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #eadfca;
+    }
+
+    .info-value {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.4;
+      font-weight: 700;
+    }
+
+    .map-wrap {
+      display: block;
+      flex: 0 0 auto;
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      background: #dfe7df;
+    }
+
+    #map {
+      width: 100%;
+      height: 520px;
+      min-height: 400px;
+    }
+
+    .leaflet-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    .notice,
+    .message {
+      padding: 14px 16px;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .notice {
+      background: #fffaf0;
+    }
+
+    .message {
+      display: none;
+      font-weight: 700;
+    }
+
+    .message.is-visible {
+      display: block;
+    }
+
+    .message.warning {
+      background: var(--warning-bg);
+      border-color: var(--warning-line);
+      color: #5f4300;
+    }
+
+    .message.error {
+      background: var(--error-bg);
+      border-color: var(--error-line);
+      color: #7b1e1e;
+    }
+
+    .message.ok {
+      background: var(--ok-bg);
+      border-color: var(--ok-line);
+      color: #1f5f3d;
+    }
+
+    .marker-pin {
+      width: 42px;
+      height: 42px;
+      display: grid;
+      place-items: center;
+      border: 3px solid #fffaf0;
+      border-radius: 50% 50% 50% 0;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 900;
+      transform: rotate(-45deg);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .marker-pin span {
+      transform: rotate(45deg);
+      font-size: 17px;
+    }
+
+    .leaflet-popup-content {
+      font-size: 16px;
+      line-height: 1.5;
+    }
+
+    @media (min-width: 720px) {
+      header {
+        padding-left: 24px;
+        padding-right: 24px;
+      }
+
+      h1 {
+        font-size: 30px;
+      }
+
+      main {
+        padding: 18px;
+      }
+
+      .info-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      #map {
+        height: 600px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      #map {
+        height: 430px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h1>屋台トラッカー</h1>
+      <p class="subtitle">現在地の目安を地図で確認できます</p>
+    </header>
+
+    <main>
+      <section class="info-card" aria-label="山車情報">
+        <p class="label">表示中の山車</p>
+        <p class="dashi-name" id="dashiName">読み込み中</p>
+
+        <div class="info-grid">
+          <div class="info-item">
+            <p class="label">状況</p>
+            <p class="info-value" id="dashiStatus">確認中</p>
+          </div>
+          <div class="info-item">
+            <p class="label">最終更新</p>
+            <p class="info-value" id="updatedAt">確認中</p>
+          </div>
+        </div>
+      </section>
+
+      <div id="message" class="message" role="status" aria-live="polite"></div>
+
+      <section class="map-wrap" aria-label="山車の現在地">
+        <div id="map"></div>
+      </section>
+
+      <section class="notice" aria-label="注意書き">
+        位置情報は目安です。<br>
+        電波状況やGPS精度により、実際の山車位置とずれる場合があります。
+      </section>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    /*
+      Firebase設定をここに貼り付けてください。
+
+      1. Firebaseコンソールで対象プロジェクトを開く
+      2. Webアプリの設定から firebaseConfig をコピーする
+      3. 下の値を本物の設定値に置き換える
+
+      注意:
+      - databaseURL は Realtime Database のURLです。
+      - このStep 1では読み取り確認だけを目的にしています。
+      - 本物のFirebase設定値は、このひな形には入れていません。
+    */
+      const firebaseConfig = {
+          apiKey: "AIzaSyAyjY-UCisOurFJnLD4FD2cvYgX251SVeU",
+          authDomain: "yatai-tracker-mvp.firebaseapp.com",
+          databaseURL: "https://yatai-tracker-mvp-default-rtdb.firebaseio.com",
+          projectId: "yatai-tracker-mvp",
+          storageBucket: "yatai-tracker-mvp.firebasestorage.app",
+          messagingSenderId: "285283040023",
+          appId: "1:285283040023:web:af6de79936a5d0db321552"
+      };
+    const DEFAULT_DASHI_ID = "dashi01";
+    const STALE_LIMIT_MS = 3 * 60 * 1000;
+    const DEFAULT_CENTER = [34.768, 137.998];
+    const params = new URLSearchParams(window.location.search);
+    const dashiId = params.get("id") || DEFAULT_DASHI_ID;
+
+    const elements = {
+      dashiName: document.getElementById("dashiName"),
+      dashiStatus: document.getElementById("dashiStatus"),
+      updatedAt: document.getElementById("updatedAt"),
+      message: document.getElementById("message")
+    };
+
+    let latestData = null;
+    let marker = null;
+
+    const map = L.map("map", {
+      zoomControl: true
+    }).setView(DEFAULT_CENTER, 16);
+
+    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>',
+      maxZoom: 18
+    }).addTo(map);
+
+    map.invalidateSize();
+    setTimeout(() => map.invalidateSize(), 100);
+
+    const dashiIcon = L.divIcon({
+      className: "",
+      html: '<div class="marker-pin"><span>祭</span></div>',
+      iconSize: [42, 42],
+      iconAnchor: [21, 42],
+      popupAnchor: [0, -42]
+    });
+
+    function refreshMapSize() {
+      requestAnimationFrame(() => {
+        map.invalidateSize();
+      });
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 250);
+    }
+
+    function showMessage(type, text) {
+      elements.message.className = `message ${type} is-visible`;
+      elements.message.innerHTML = text;
+      refreshMapSize();
+    }
+
+    function hideMessage() {
+      elements.message.className = "message";
+      elements.message.textContent = "";
+      refreshMapSize();
+    }
+
+    function isFirebaseConfigMissing(config) {
+      return Object.values(config).some((value) => {
+        return typeof value !== "string" || value.trim() === "" || value.includes("ここに");
+      });
+    }
+
+    function formatUpdatedAt(timestamp) {
+      if (!Number.isFinite(timestamp)) {
+        return "時刻不明";
+      }
+
+      return new Intl.DateTimeFormat("ja-JP", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      }).format(new Date(timestamp));
+    }
+
+    function isValidLocation(data) {
+      return (
+        data &&
+        Number.isFinite(Number(data.lat)) &&
+        Number.isFinite(Number(data.lng))
+      );
+    }
+
+    function updateStaleWarning(data) {
+      if (!data || !Number.isFinite(Number(data.updatedAt))) {
+        return;
+      }
+
+      const elapsed = Date.now() - Number(data.updatedAt);
+      if (elapsed >= STALE_LIMIT_MS) {
+        showMessage(
+          "warning",
+          "位置情報の更新が3分以上止まっています。<br>山車側スマホの通信、電池、画面スリープなどの影響で停止している可能性があります。"
+        );
+      } else if (elements.message.classList.contains("warning")) {
+        hideMessage();
+      }
+    }
+
+    function updateView(data) {
+      latestData = data;
+
+      const lat = Number(data.lat);
+      const lng = Number(data.lng);
+      const name = data.name || dashiId;
+      const status = data.status || "状況不明";
+      const updatedAt = Number(data.updatedAt);
+      const position = [lat, lng];
+
+      elements.dashiName.textContent = name;
+      elements.dashiStatus.textContent = status;
+      elements.updatedAt.textContent = formatUpdatedAt(updatedAt);
+
+      if (!marker) {
+        marker = L.marker(position, { icon: dashiIcon }).addTo(map);
+      } else {
+        marker.setLatLng(position);
+      }
+
+      marker
+        .bindPopup(`<strong>${escapeHtml(name)}</strong><br>${escapeHtml(status)}<br>${escapeHtml(formatUpdatedAt(updatedAt))}`)
+        .openPopup();
+
+      refreshMapSize();
+      map.setView(position, map.getZoom(), { animate: true });
+      setTimeout(() => map.invalidateSize(), 100);
+      refreshMapSize();
+      updateStaleWarning(data);
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => {
+        return {
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;"
+        }[char];
+      });
+    }
+
+    async function startFirebaseListener() {
+      if (isFirebaseConfigMissing(firebaseConfig)) {
+        showMessage(
+          "error",
+          "Firebase設定が未入力です。<br>view.html内の firebaseConfig を、Firebaseコンソールの設定値に置き換えてください。"
+        );
+        elements.dashiName.textContent = dashiId;
+        elements.dashiStatus.textContent = "Firebase設定待ち";
+        elements.updatedAt.textContent = "未接続";
+        return;
+      }
+
+      try {
+        const firebaseAppModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+        const firebaseDatabaseModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
+        const { initializeApp } = firebaseAppModule;
+        const { getDatabase, ref, onValue } = firebaseDatabaseModule;
+
+        const app = initializeApp(firebaseConfig);
+        const database = getDatabase(app);
+        const locationRef = ref(database, `dashiLocations/${dashiId}`);
+
+        onValue(
+          locationRef,
+          (snapshot) => {
+            const data = snapshot.val();
+
+            if (!data) {
+              showMessage(
+                "error",
+                `Firebaseに dashiLocations/${escapeHtml(dashiId)} のデータが見つかりません。`
+              );
+              elements.dashiName.textContent = dashiId;
+              elements.dashiStatus.textContent = "データなし";
+              elements.updatedAt.textContent = "未取得";
+              return;
+            }
+
+            if (!isValidLocation(data)) {
+              showMessage(
+                "error",
+                "緯度または経度の値を読み取れません。Firebaseの lat / lng を確認してください。"
+              );
+              return;
+            }
+
+            if (elements.message.classList.contains("error")) {
+              hideMessage();
+            }
+
+            updateView(data);
+          },
+          (error) => {
+            showMessage(
+              "error",
+              `Firebaseの読み込みに失敗しました。<br>${escapeHtml(error.message || "設定や通信状態を確認してください。")}`
+            );
+            elements.dashiName.textContent = dashiId;
+            elements.dashiStatus.textContent = "読み込み失敗";
+            elements.updatedAt.textContent = "未取得";
+          }
+        );
+      } catch (error) {
+        showMessage(
+          "error",
+          `Firebaseの初期化に失敗しました。<br>${escapeHtml(error.message || "firebaseConfigを確認してください。")}`
+        );
+        elements.dashiStatus.textContent = "接続エラー";
+        elements.updatedAt.textContent = "未接続";
+      }
+    }
+
+    setInterval(() => {
+      updateStaleWarning(latestData);
+    }, 30 * 1000);
+
+    window.addEventListener("load", refreshMapSize);
+    window.addEventListener("resize", refreshMapSize);
+    window.addEventListener("orientationchange", refreshMapSize);
+
+    refreshMapSize();
+    startFirebaseListener();
+  </script>
+</body>
+</html>
