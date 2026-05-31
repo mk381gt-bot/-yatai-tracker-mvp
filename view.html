@@ -182,6 +182,42 @@
       color: #1f5f3d;
     }
 
+    .auto-update-panel {
+      display: none;
+      padding: 14px 16px;
+      border: 1px solid var(--warning-line);
+      border-radius: 8px;
+      background: var(--warning-bg);
+      color: #5f4300;
+      font-size: 16px;
+      line-height: 1.65;
+      font-weight: 700;
+      box-shadow: 0 1px 2px rgba(31, 41, 51, 0.08);
+    }
+
+    .auto-update-panel.is-visible {
+      display: block;
+    }
+
+    .update-button {
+      width: 100%;
+      min-height: 52px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fffaf0;
+      font: inherit;
+      font-size: 17px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .update-button:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
     .marker-pin {
       width: 42px;
       height: 42px;
@@ -262,6 +298,14 @@
 
       <div id="message" class="message" role="status" aria-live="polite"></div>
 
+      <div id="autoUpdatePanel" class="auto-update-panel" aria-live="polite">
+        <div id="autoUpdateMessage">
+          現在地の自動更新を一時停止しました。<br>
+          最新の位置を見るには更新ボタンを押してください。
+        </div>
+        <button id="manualUpdateButton" class="update-button" type="button">山車の位置を更新する</button>
+      </div>
+
       <section class="map-wrap" aria-label="山車の現在地">
         <div id="map"></div>
       </section>
@@ -299,6 +343,8 @@
       };
     const DEFAULT_DASHI_ID = "dashi01";
     const STALE_LIMIT_MS = 3 * 60 * 1000;
+    const AUTO_UPDATE_LIMIT_MS = 5 * 60 * 1000;
+    // テスト時は 10 * 1000 にすると10秒で確認しやすいです。最終値は5分です。
     const DEFAULT_CENTER = [34.768, 137.998];
     const params = new URLSearchParams(window.location.search);
     const dashiId = params.get("id") || DEFAULT_DASHI_ID;
@@ -307,11 +353,19 @@
       dashiName: document.getElementById("dashiName"),
       dashiStatus: document.getElementById("dashiStatus"),
       updatedAt: document.getElementById("updatedAt"),
-      message: document.getElementById("message")
+      message: document.getElementById("message"),
+      autoUpdatePanel: document.getElementById("autoUpdatePanel"),
+      autoUpdateMessage: document.getElementById("autoUpdateMessage"),
+      manualUpdateButton: document.getElementById("manualUpdateButton")
     };
 
     let latestData = null;
     let marker = null;
+    let firebaseModules = null;
+    let database = null;
+    let locationRef = null;
+    let unsubscribeLocation = null;
+    let autoUpdateTimer = null;
 
     const map = L.map("map", {
       zoomControl: true
@@ -359,6 +413,19 @@
       refreshMapSize();
     }
 
+    function showAutoUpdateStopped() {
+      elements.autoUpdatePanel.classList.add("is-visible");
+      elements.manualUpdateButton.disabled = false;
+      elements.autoUpdateMessage.innerHTML = "現在地の自動更新を一時停止しました。<br>最新の位置を見るには更新ボタンを押してください。";
+      refreshMapSize();
+    }
+
+    function hideAutoUpdateStopped() {
+      elements.autoUpdatePanel.classList.remove("is-visible");
+      elements.manualUpdateButton.disabled = false;
+      refreshMapSize();
+    }
+
     function isFirebaseConfigMissing(config) {
       return Object.values(config).some((value) => {
         return typeof value !== "string" || value.trim() === "" || value.includes("ここに");
@@ -366,7 +433,9 @@
     }
 
     function formatUpdatedAt(timestamp) {
-      if (!Number.isFinite(timestamp)) {
+      const normalizedTimestamp = normalizeUpdatedAt(timestamp);
+
+      if (!Number.isFinite(normalizedTimestamp)) {
         return "時刻不明";
       }
 
@@ -377,7 +446,7 @@
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
-      }).format(new Date(timestamp));
+      }).format(new Date(normalizedTimestamp));
     }
 
     function isValidLocation(data) {
@@ -388,18 +457,33 @@
       );
     }
 
+    function normalizeUpdatedAt(value) {
+      const timestamp = Number(value);
+
+      if (!Number.isFinite(timestamp)) {
+        return NaN;
+      }
+
+      return timestamp;
+    }
+
     function updateStaleWarning(data) {
-      if (!data || !Number.isFinite(Number(data.updatedAt))) {
+      const updatedAt = normalizeUpdatedAt(data && data.updatedAt);
+
+      if (!Number.isFinite(updatedAt)) {
         return;
       }
 
-      const elapsed = Date.now() - Number(data.updatedAt);
-      if (elapsed >= STALE_LIMIT_MS) {
+      const elapsed = Date.now() - updatedAt;
+      if (elapsed > STALE_LIMIT_MS) {
         showMessage(
           "warning",
           "位置情報の更新が3分以上止まっています。<br>山車側スマホの通信、電池、画面スリープなどの影響で停止している可能性があります。"
         );
-      } else if (elements.message.classList.contains("warning")) {
+        return;
+      }
+
+      if (elements.message.classList.contains("warning")) {
         hideMessage();
       }
     }
@@ -411,7 +495,7 @@
       const lng = Number(data.lng);
       const name = data.name || dashiId;
       const status = data.status || "状況不明";
-      const updatedAt = Number(data.updatedAt);
+      const updatedAt = normalizeUpdatedAt(data.updatedAt);
       const position = [lat, lng];
 
       elements.dashiName.textContent = name;
@@ -433,6 +517,118 @@
       setTimeout(() => map.invalidateSize(), 100);
       refreshMapSize();
       updateStaleWarning(data);
+    }
+
+    function startAutoUpdateTimer() {
+      clearTimeout(autoUpdateTimer);
+      autoUpdateTimer = setTimeout(stopAutoUpdate, AUTO_UPDATE_LIMIT_MS);
+    }
+
+    function stopAutoUpdate() {
+      clearTimeout(autoUpdateTimer);
+      autoUpdateTimer = null;
+      unsubscribeDashiLocation();
+      showAutoUpdateStopped();
+    }
+
+    function unsubscribeDashiLocation() {
+      if (typeof unsubscribeLocation === "function") {
+        unsubscribeLocation();
+        unsubscribeLocation = null;
+      }
+    }
+
+    async function prepareFirebase() {
+      if (database && locationRef && firebaseModules) {
+        return;
+      }
+
+      const firebaseAppModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+      const firebaseDatabaseModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
+      const { initializeApp } = firebaseAppModule;
+      const { getDatabase, ref } = firebaseDatabaseModule;
+
+      firebaseModules = firebaseDatabaseModule;
+      const app = initializeApp(firebaseConfig);
+      database = getDatabase(app);
+      locationRef = ref(database, `dashiLocations/${dashiId}`);
+    }
+
+    async function subscribeDashiLocation() {
+      await prepareFirebase();
+      unsubscribeDashiLocation();
+      hideAutoUpdateStopped();
+
+      unsubscribeLocation = firebaseModules.onValue(
+        locationRef,
+        (snapshot) => {
+          handleSnapshotData(snapshot.val());
+        },
+        handleFirebaseError
+      );
+
+      startAutoUpdateTimer();
+    }
+
+    async function fetchLatestOnce() {
+      await prepareFirebase();
+      const snapshot = await firebaseModules.get(locationRef);
+      handleSnapshotData(snapshot.val());
+    }
+
+    async function restartAutoUpdate() {
+      elements.manualUpdateButton.disabled = true;
+      elements.autoUpdatePanel.classList.add("is-visible");
+      elements.autoUpdateMessage.textContent = "最新の位置を取得しています。";
+
+      try {
+        await fetchLatestOnce();
+        await subscribeDashiLocation();
+      } catch (error) {
+        elements.manualUpdateButton.disabled = false;
+        elements.autoUpdateMessage.textContent = "最新位置の取得に失敗しました。時間をおいてもう一度押してください。";
+        showMessage(
+          "error",
+          `Firebaseの読み込みに失敗しました。<br>${escapeHtml(error.message || "設定や通信状態を確認してください。")}`
+        );
+      }
+    }
+
+    function handleSnapshotData(data) {
+      if (!data) {
+        showMessage(
+          "error",
+          `Firebaseに dashiLocations/${escapeHtml(dashiId)} のデータが見つかりません。`
+        );
+        elements.dashiName.textContent = dashiId;
+        elements.dashiStatus.textContent = "データなし";
+        elements.updatedAt.textContent = "未取得";
+        return;
+      }
+
+      if (!isValidLocation(data)) {
+        showMessage(
+          "error",
+          "緯度または経度の値を読み取れません。Firebaseの lat / lng を確認してください。"
+        );
+        return;
+      }
+
+      if (elements.message.classList.contains("error")) {
+        hideMessage();
+      }
+
+      updateView(data);
+    }
+
+    function handleFirebaseError(error) {
+      showMessage(
+        "error",
+        `Firebaseの読み込みに失敗しました。<br>${escapeHtml(error.message || "設定や通信状態を確認してください。")}`
+      );
+      elements.dashiName.textContent = dashiId;
+      elements.dashiStatus.textContent = "読み込み失敗";
+      elements.updatedAt.textContent = "未取得";
     }
 
     function escapeHtml(value) {
@@ -460,55 +656,7 @@
       }
 
       try {
-        const firebaseAppModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
-        const firebaseDatabaseModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
-        const { initializeApp } = firebaseAppModule;
-        const { getDatabase, ref, onValue } = firebaseDatabaseModule;
-
-        const app = initializeApp(firebaseConfig);
-        const database = getDatabase(app);
-        const locationRef = ref(database, `dashiLocations/${dashiId}`);
-
-        onValue(
-          locationRef,
-          (snapshot) => {
-            const data = snapshot.val();
-
-            if (!data) {
-              showMessage(
-                "error",
-                `Firebaseに dashiLocations/${escapeHtml(dashiId)} のデータが見つかりません。`
-              );
-              elements.dashiName.textContent = dashiId;
-              elements.dashiStatus.textContent = "データなし";
-              elements.updatedAt.textContent = "未取得";
-              return;
-            }
-
-            if (!isValidLocation(data)) {
-              showMessage(
-                "error",
-                "緯度または経度の値を読み取れません。Firebaseの lat / lng を確認してください。"
-              );
-              return;
-            }
-
-            if (elements.message.classList.contains("error")) {
-              hideMessage();
-            }
-
-            updateView(data);
-          },
-          (error) => {
-            showMessage(
-              "error",
-              `Firebaseの読み込みに失敗しました。<br>${escapeHtml(error.message || "設定や通信状態を確認してください。")}`
-            );
-            elements.dashiName.textContent = dashiId;
-            elements.dashiStatus.textContent = "読み込み失敗";
-            elements.updatedAt.textContent = "未取得";
-          }
-        );
+        await subscribeDashiLocation();
       } catch (error) {
         showMessage(
           "error",
@@ -526,6 +674,7 @@
     window.addEventListener("load", refreshMapSize);
     window.addEventListener("resize", refreshMapSize);
     window.addEventListener("orientationchange", refreshMapSize);
+    elements.manualUpdateButton.addEventListener("click", restartAutoUpdate);
 
     refreshMapSize();
     startFirebaseListener();

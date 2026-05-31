@@ -126,6 +126,11 @@
       opacity: 0.55;
     }
 
+    .settings-button {
+      min-height: 50px;
+      margin-top: 4px;
+    }
+
     .primary {
       background: var(--accent);
       color: #fffaf0;
@@ -258,6 +263,8 @@
         </select>
       </div>
 
+      <button class="secondary settings-button" id="saveSettingsButton" type="button">設定を保存</button>
+
       <div class="button-row">
         <button class="primary" id="startButton" type="button">送信開始</button>
         <button class="secondary" id="gpsCheckButton" type="button">GPS状態確認</button>
@@ -356,6 +363,7 @@
       dashiId: document.getElementById("dashiId"),
       dashiName: document.getElementById("dashiName"),
       dashiStatus: document.getElementById("dashiStatus"),
+      saveSettingsButton: document.getElementById("saveSettingsButton"),
       startButton: document.getElementById("startButton"),
       gpsCheckButton: document.getElementById("gpsCheckButton"),
       stopButton: document.getElementById("stopButton"),
@@ -381,10 +389,13 @@
     let lastSentAt = null;
     let latestLocation = null;
 
-    elements.dashiId.value = initialDashiId;
+    loadSavedSettings();
     updatePathLabel();
 
     elements.dashiId.addEventListener("input", updatePathLabel);
+    elements.saveSettingsButton.addEventListener("click", () => {
+      saveSettings(true);
+    });
     elements.startButton.addEventListener("click", startSending);
     elements.gpsCheckButton.addEventListener("click", checkGpsStatus);
     elements.stopButton.addEventListener("click", stopSending);
@@ -397,6 +408,58 @@
     function getDashiId() {
       const value = elements.dashiId.value.trim();
       return value || DEFAULT_DASHI_ID;
+    }
+
+    function getDashiName() {
+      return elements.dashiName.value.trim() || "〇〇屋台";
+    }
+
+    function getDashiStatus() {
+      return elements.dashiStatus.value || "巡行中";
+    }
+
+    function loadSavedSettings() {
+      const savedDashiId = readStorageValue("dashiTracker_dashiId");
+      const dashiId = savedDashiId || initialDashiId || DEFAULT_DASHI_ID;
+
+      elements.dashiId.value = dashiId;
+      elements.dashiName.value = readStorageValue(`dashiTracker_dashiName_${dashiId}`) || "〇〇屋台";
+      elements.dashiStatus.value = readStorageValue(`dashiTracker_status_${dashiId}`) || "巡行中";
+    }
+
+    function saveSettings(showNotice) {
+      const dashiId = getDashiId();
+      const saved =
+        writeStorageValue("dashiTracker_dashiId", dashiId) &&
+        writeStorageValue(`dashiTracker_dashiName_${dashiId}`, getDashiName()) &&
+        writeStorageValue(`dashiTracker_status_${dashiId}`, getDashiStatus());
+
+      if (showNotice) {
+        showMessage(
+          saved ? "ok" : "err",
+          saved ? "設定を保存しました" : "設定の保存に失敗しました"
+        );
+      }
+
+      updatePathLabel();
+      return saved;
+    }
+
+    function readStorageValue(key) {
+      try {
+        return localStorage.getItem(key);
+      } catch (error) {
+        return null;
+      }
+    }
+
+    function writeStorageValue(key, value) {
+      try {
+        localStorage.setItem(key, value);
+        return true;
+      } catch (error) {
+        return false;
+      }
     }
 
     function showMessage(type, text) {
@@ -587,11 +650,13 @@
       const dashiId = getDashiId();
       const locationRef = databaseModule.ref(database, `dashiLocations/${dashiId}`);
 
+      saveSettings(false);
+
       await databaseModule.update(locationRef, {
-        name: elements.dashiName.value.trim() || dashiId,
+        name: getDashiName(),
         lat: location.lat,
         lng: location.lng,
-        status: elements.dashiStatus.value,
+        status: getDashiStatus(),
         updatedAt: now
       });
 
@@ -672,6 +737,7 @@
       isSending = true;
       elements.sendState.textContent = "送信中";
       elements.gpsState.textContent = "取得開始";
+      elements.dashiId.disabled = true;
       elements.startButton.disabled = true;
       elements.gpsCheckButton.disabled = true;
       elements.stopButton.disabled = false;
@@ -699,6 +765,7 @@
 
       isSending = false;
       elements.sendState.textContent = "停止中";
+      elements.dashiId.disabled = false;
       elements.startButton.disabled = false;
       elements.gpsCheckButton.disabled = false;
       elements.stopButton.disabled = true;
