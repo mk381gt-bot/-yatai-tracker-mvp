@@ -101,7 +101,7 @@ Phase 0.5（一次経験30例）の完了まで変更しない。
 | README.md | 仮定義・結論・未解決・次の手・棄却した仮説 | 更新中 |
 | 00_RESEARCH_DESIGN.md | 研究計画そのものの批評（第1版＋改訂注記） | 完了 |
 | 00_CONCEPT_REVISION.md | **概念の定義（第3版・4層／固定）** | **確定（30例まで変更しない）** |
-| 01_PRIMARY_EXPERIENCES.md | 一次経験30例（10項目形式） | **収集中 0/30** |
+| 01_PRIMARY_EXPERIENCES.md | 一次経験30例（10項目形式） | **収集中 1/30** |
 | 02_CONSTRAINT_TYPES.md | 制約の類型化 | 未着手 |
 | 03_EXISTING_THEORIES.md | 既存概念の調査設計（優先順位を全面改訂） | 設計のみ完了 |
 | 04_DIFFERENCES.md | 独自性の判定 | 未着手 |
