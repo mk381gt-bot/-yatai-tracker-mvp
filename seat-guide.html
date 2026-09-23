@@ -182,6 +182,10 @@
         </div>
       </div>
       <button class="primary" id="showSeat" type="button">お客様に見せる</button>
+      <div class="card" style="margin-top:12px">
+        <h2>キックオフ時刻を見せる</h2>
+        <div class="arrows" id="kickoffs" style="grid-template-columns: repeat(2, 1fr);"></div>
+      </div>
       <p class="hint">入力内容はこの端末の中だけで使います（送信しません）。</p>
     </section>
 
@@ -239,6 +243,7 @@
       row:   { ja: "列", en: "Row", zh: "排", tw: "排", ko: "열", th: "แถว", vi: "Hàng", id: "Baris", ar: "الصف" },
       seat:  { ja: "番号", en: "Seat", zh: "座", tw: "座", ko: "번", th: "ที่นั่ง", vi: "Ghế", id: "Kursi", ar: "المقعد" },
       way:   { ja: "こちらへお進みください", en: "Please go this way", zh: "请往这边走", tw: "請往這邊走", ko: "이쪽으로 가세요", th: "กรุณาไปทางนี้", vi: "Vui lòng đi hướng này", id: "Silakan lewat sini", ar: "من فضلك اذهب من هنا" },
+      kickoff: { ja: "キックオフ", en: "Kick-off", zh: "开球时间", tw: "開球時間", ko: "킥오프", th: "เวลาเริ่มแข่ง", vi: "Giờ bắt đầu", id: "Waktu mulai", ar: "موعد انطلاق المباراة" },
       pick:  { ja: "言語を選んでください", en: "Please choose your language", zh: "请选择语言", tw: "請選擇語言", ko: "언어를 선택해 주세요", th: "กรุณาเลือกภาษา", vi: "Vui lòng chọn ngôn ngữ", id: "Silakan pilih bahasa", ar: "يرجى اختيار لغتك" },
     };
 
@@ -249,11 +254,15 @@
       south: { ja: "南側スタンド", en: "South Stand", zh: "南看台", tw: "南看台", ko: "남측 스탠드", th: "อัฒจันทร์ทิศใต้", vi: "Khán đài Nam", id: "Tribun Selatan", ar: "المدرج الجنوبي" },
     };
 
+    // ---- 当日の試合時刻（9/25 準々決勝は2試合） ----
+    const KICKOFFS = ["15:00", "19:30"];
+
     // ---- 定型フレーズ ----
     const CATEGORIES = [
       { id: "greet", name: "あいさつ・チケット" },
       { id: "seat", name: "座席への案内" },
       { id: "place", name: "施設の場所（指さしながら）" },
+      { id: "match", name: "試合・駐車場" },
       { id: "rule", name: "お願い・ルール" },
       { id: "sos", name: "緊急", emergency: true },
     ];
@@ -282,6 +291,9 @@
       { cat: "place", ja: "授乳室はあちらです。", en: "The nursing room is that way.", zh: "哺乳室在那边。", tw: "哺乳室在那邊。", ko: "수유실은 저쪽입니다.", th: "ห้องให้นมบุตรอยู่ทางนั้น", vi: "Phòng cho con bú ở phía kia.", id: "Ruang menyusui ada di sebelah sana.", ar: "غرفة الرضاعة في ذلك الاتجاه." },
       { cat: "place", ja: "案内所はあちらです。落とし物もそこで対応します。", en: "The information desk is that way. They also handle lost items.", zh: "咨询处在那边，失物也在那里处理。", tw: "服務台在那邊，遺失物也在那裡處理。", ko: "안내소는 저쪽입니다. 분실물도 그곳에서 처리합니다.", th: "จุดประชาสัมพันธ์อยู่ทางนั้น รับแจ้งของหายด้วย", vi: "Quầy thông tin ở phía kia. Đồ thất lạc cũng được xử lý tại đó.", id: "Meja informasi ada di sebelah sana. Barang hilang juga diurus di sana.", ar: "مكتب الاستعلامات في ذلك الاتجاه، ويتولى أيضًا المفقودات." },
       { cat: "place", ja: "お祈りできる場所を確認します。少々お待ちください。", en: "Let me check where you can pray. One moment, please.", zh: "我帮您确认可以祈祷的地方，请稍等。", tw: "我幫您確認可以祈禱的地方，請稍等。", ko: "기도할 수 있는 장소를 확인해 드리겠습니다. 잠시만 기다려 주세요.", th: "ขอตรวจสอบสถานที่ละหมาดให้ก่อน กรุณารอสักครู่", vi: "Tôi sẽ kiểm tra nơi bạn có thể cầu nguyện. Xin chờ một chút.", id: "Saya akan cek tempat untuk salat. Mohon tunggu sebentar.", ar: "دعني أتحقق من مكان مخصص للصلاة. لحظة من فضلك." },
+
+      { cat: "match", ja: "本日は2試合あります。", en: "There are two matches today.", zh: "今天有两场比赛。", tw: "今天有兩場比賽。", ko: "오늘은 두 경기가 있습니다.", th: "วันนี้มีการแข่งขันสองนัด", vi: "Hôm nay có hai trận đấu.", id: "Hari ini ada dua pertandingan.", ar: "هناك مباراتان اليوم." },
+      { cat: "match", ja: "この駐車場は関係者専用です。一般のお客様は駐車できません。", en: "This parking lot is for staff only. General visitors cannot park here.", zh: "此停车场仅限工作人员使用，一般观众不能停车。", tw: "此停車場僅限工作人員使用，一般觀眾不能停車。", ko: "이 주차장은 관계자 전용입니다. 일반 관람객은 주차할 수 없습니다.", th: "ลานจอดรถนี้สำหรับเจ้าหน้าที่เท่านั้น ผู้ชมทั่วไปไม่สามารถจอดได้", vi: "Bãi đỗ xe này chỉ dành cho nhân viên. Khách thông thường không được đỗ xe tại đây.", id: "Parkir ini khusus petugas. Pengunjung umum tidak bisa parkir di sini.", ar: "موقف السيارات هذا مخصص للموظفين فقط. لا يمكن للزوار العاديين الوقوف هنا." },
 
       { cat: "rule", ja: "客席では喫煙できません。", en: "Smoking is not allowed in the seating area.", zh: "观众席内禁止吸烟。", tw: "觀眾席內禁止吸菸。", ko: "관람석에서는 흡연할 수 없습니다.", th: "ห้ามสูบบุหรี่ในบริเวณที่นั่งชม", vi: "Không được hút thuốc tại khu vực khán đài.", id: "Dilarang merokok di area tempat duduk.", ar: "التدخين غير مسموح به في منطقة المقاعد." },
       { cat: "rule", ja: "通路で立ち止まらないでください。", en: "Please do not stand in the aisle.", zh: "请不要在通道停留。", tw: "請不要在走道停留。", ko: "통로에 멈춰 서지 말아 주세요.", th: "กรุณาอย่ายืนขวางทางเดิน", vi: "Vui lòng không đứng lại ở lối đi.", id: "Mohon jangan berdiri di lorong.", ar: "يرجى عدم الوقوف في الممر." },
@@ -409,6 +421,17 @@
         (arrow ? `<div class="arrow-big" dir="ltr">${arrow}</div><div class="big" style="font-size:clamp(22px,6vw,36px)">${esc(LABELS.way[c])}</div>` : "") +
         `<div class="ja" dir="ltr">${esc(jaLine || LABELS.way.ja)}</div>`;
       openShow(html, arrow ? LABELS.way[c] : LABELS.title[c], lang.rtl);
+    });
+
+    // ---- キックオフ時刻 ----
+    $("kickoffs").innerHTML = KICKOFFS.map(t => `<button type="button" data-time="${t}">${t}</button>`).join("");
+    $("kickoffs").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-time]");
+      if (!btn) return;
+      const c = lang.code;
+      openShow(
+        `<div class="big">${esc(LABELS.kickoff[c])}</div><div class="arrow-big" dir="ltr" style="font-size:clamp(64px,22vw,140px)">${btn.dataset.time}</div><div class="ja" dir="ltr">キックオフ ${btn.dataset.time}</div>`,
+        `${LABELS.kickoff[c]} ${btn.dataset.time}`, lang.rtl);
     });
 
     // ---- フレーズ ----
