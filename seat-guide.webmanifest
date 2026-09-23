@@ -1,0 +1,9 @@
+{
+  "name": "席案内トランスレーター",
+  "short_name": "席案内",
+  "start_url": "seat-guide.html",
+  "display": "standalone",
+  "background_color": "#f4f6fa",
+  "theme_color": "#0b3d91",
+  "lang": "ja"
+}
