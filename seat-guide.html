@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b3d91">
+  <title>席案内トランスレーター</title>
+  <link rel="manifest" href="seat-guide.webmanifest">
+  <style>
+    :root {
+      --bg: #f4f6fa;
+      --panel: #ffffff;
+      --ink: #111827;
+      --muted: #5b6474;
+      --line: #d7dce5;
+      --accent: #0b3d91;
+      --accent-ink: #ffffff;
+      --warn: #b42318;
+      --ok: #067647;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Noto Sans", sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    button { font: inherit; color: inherit; cursor: pointer; }
+
+    header {
+      position: sticky; top: 0; z-index: 5;
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 12px;
+      background: var(--accent); color: var(--accent-ink);
+    }
+    header h1 { font-size: 16px; margin: 0; flex: 1; }
+    .lang-btn {
+      border: 2px solid rgba(255,255,255,.6); background: rgba(255,255,255,.12);
+      border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #fff;
+    }
+
+    nav.tabs {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      background: var(--panel); border-bottom: 1px solid var(--line);
+      position: sticky; top: 52px; z-index: 4;
+    }
+    nav.tabs button {
+      border: 0; background: none; padding: 14px 4px; font-weight: 700; color: var(--muted);
+      border-bottom: 3px solid transparent;
+    }
+    nav.tabs button[aria-selected="true"] { color: var(--accent); border-bottom-color: var(--accent); }
+
+    main { padding: 12px 12px 40px; max-width: 720px; margin: 0 auto; }
+    section[hidden] { display: none; }
+
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .card h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); }
+
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
+    label.field input, label.field select {
+      font-size: 20px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
+    }
+    .arrows { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+    .arrows button {
+      font-size: 28px; padding: 10px 0; border: 1px solid var(--line); border-radius: 10px; background: #fff;
+    }
+    .arrows button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .arrows button small { display: block; font-size: 11px; }
+
+    .primary {
+      width: 100%; border: 0; border-radius: 12px; padding: 16px; font-size: 18px; font-weight: 800;
+      background: var(--accent); color: var(--accent-ink);
+    }
+
+    .search { width: 100%; font-size: 17px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; margin-bottom: 12px; }
+    .cat-title { font-size: 13px; font-weight: 800; color: var(--muted); margin: 18px 4px 8px; }
+    .phrase {
+      display: block; width: 100%; text-align: left; margin-bottom: 8px;
+      background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px;
+      font-size: 17px; line-height: 1.4;
+    }
+    .phrase.emergency { border-color: #f4b4ae; background: #fff5f4; }
+    .phrase .sub { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+    .reply-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .reply {
+      border: 1px solid var(--line); background: var(--panel); border-radius: 14px; padding: 22px 8px;
+      font-size: 24px; font-weight: 800; text-align: center;
+    }
+    .reply .sub { display: block; font-size: 14px; font-weight: 500; color: var(--muted); margin-top: 6px; }
+    .hint { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+    /* 全画面表示（お客様に見せる画面） */
+    .overlay {
+      position: fixed; inset: 0; z-index: 20; background: #fff;
+      display: flex; flex-direction: column;
+    }
+    .overlay[hidden] { display: none; }
+    .overlay .show {
+      flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+      padding: 24px; text-align: center; overflow: auto; transition: transform .25s;
+    }
+    .overlay.flipped .show { transform: rotate(180deg); }
+    .show .big { font-size: clamp(30px, 8vw, 56px); font-weight: 800; line-height: 1.35; word-break: break-word; }
+    .show .ja { margin-top: 18px; font-size: 16px; color: var(--muted); }
+    .show .arrow-big { font-size: clamp(90px, 30vw, 180px); line-height: 1; margin: 8px 0; color: var(--accent); }
+    .seat-table { margin-top: 12px; border-collapse: collapse; font-size: clamp(22px, 6vw, 40px); }
+    .seat-table th { text-align: right; padding: 6px 14px; color: var(--muted); font-weight: 600; font-size: .6em; }
+    .seat-table td { text-align: left; padding: 6px 14px; font-weight: 800; }
+    [dir="rtl"] .seat-table th { text-align: left; }
+    [dir="rtl"] .seat-table td { text-align: right; }
+    .overlay .controls {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      background: var(--bg); border-top: 1px solid var(--line);
+    }
+    .overlay .controls button { border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 14px 4px; font-weight: 700; }
+
+    /* 言語選択 */
+    .lang-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 16px; overflow: auto; }
+    .lang-grid button {
+      border: 2px solid var(--line); background: #fff; border-radius: 14px; padding: 18px 8px; font-size: 22px; font-weight: 800;
+    }
+    .lang-grid button[aria-pressed="true"] { border-color: var(--accent); background: #eef3ff; }
+    .lang-grid button small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); margin-top: 4px; }
+    .lang-head { padding: 20px 16px 0; text-align: center; font-size: 17px; line-height: 1.6; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>席案内トランスレーター</h1>
+    <button class="lang-btn" id="langBtn" type="button">🌐 English</button>
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" data-tab="seat" aria-selected="true">座席</button>
+    <button role="tab" data-tab="phrases" aria-selected="false">フレーズ</button>
+    <button role="tab" data-tab="reply" aria-selected="false">お客様の返事</button>
+  </nav>
+
+  <main>
+    <!-- 座席 -->
+    <section id="tab-seat">
+      <div class="card">
+        <h2>チケットの座席情報</h2>
+        <div class="field-grid">
+          <label class="field">ゲート
+            <input id="fGate" inputmode="text" autocomplete="off" placeholder="例: 3">
+          </label>
+          <label class="field">スタンド
+            <select id="fStand">
+              <option value="">（なし）</option>
+              <option value="main">メイン</option>
+              <option value="back">バック</option>
+              <option value="north">北側</option>
+              <option value="south">南側</option>
+            </select>
+          </label>
+          <label class="field">ブロック
+            <input id="fBlock" inputmode="text" autocomplete="off" placeholder="例: S12">
+          </label>
+          <label class="field">列
+            <input id="fRow" inputmode="text" autocomplete="off" placeholder="例: 15">
+          </label>
+          <label class="field">番号
+            <input id="fSeat" inputmode="numeric" autocomplete="off" placeholder="例: 23">
+          </label>
+        </div>
+      </div>
+      <div class="card">
+        <h2>進む方向（任意）</h2>
+        <div class="arrows" id="arrows">
+          <button type="button" data-arrow="⬆">⬆<small>まっすぐ</small></button>
+          <button type="button" data-arrow="⬅">⬅<small>左</small></button>
+          <button type="button" data-arrow="➡">➡<small>右</small></button>
+          <button type="button" data-arrow="⬇">⬇<small>戻る</small></button>
+          <button type="button" data-arrow="↖">↖<small>左上</small></button>
+          <button type="button" data-arrow="↗">↗<small>右上</small></button>
+          <button type="button" data-arrow="↙">↙<small>左下</small></button>
+          <button type="button" data-arrow="↘">↘<small>右下</small></button>
+        </div>
+      </div>
+      <button class="primary" id="showSeat" type="button">お客様に見せる</button>
+      <div class="card" style="margin-top:12px">
+        <h2>キックオフ時刻を見せる</h2>
+        <div class="arrows" id="kickoffs" style="grid-template-columns: repeat(2, 1fr);"></div>
+      </div>
+      <p class="hint">入力内容はこの端末の中だけで使います（送信しません）。</p>
+    </section>
+
+    <!-- フレーズ -->
+    <section id="tab-phrases" hidden>
+      <input class="search" id="search" type="search" placeholder="🔍 フレーズを検索（例: トイレ）">
+      <div id="phraseList"></div>
+    </section>
+
+    <!-- 返事 -->
+    <section id="tab-reply" hidden>
+      <p class="hint">端末をお客様に渡して、当てはまるものを押してもらいます。押された返事は日本語で大きく表示されます。</p>
+      <div class="reply-grid" id="replyGrid"></div>
+    </section>
+  </main>
+
+  <!-- お客様に見せる全画面 -->
+  <div class="overlay" id="showOverlay" hidden>
+    <div class="show" id="showBody"></div>
+    <div class="controls">
+      <button type="button" id="flipBtn">↻ 上下反転</button>
+      <button type="button" id="speakBtn">🔊 読み上げ</button>
+      <button type="button" id="closeBtn">✕ 閉じる</button>
+    </div>
+  </div>
+
+  <!-- 言語選択 -->
+  <div class="overlay" id="langOverlay" hidden>
+    <div class="lang-head" id="langHead"></div>
+    <div class="lang-grid" id="langGrid"></div>
+    <div class="controls" style="grid-template-columns: 1fr;">
+      <button type="button" id="langClose">✕ 閉じる</button>
+    </div>
+  </div>
+
+  <script>
+    // ---- 言語 ----
+    const LANGS = [
+      { code: "en", name: "English", ja: "英語", speech: "en-US" },
+      { code: "zh", name: "简体中文", ja: "中国語（簡体字）", speech: "zh-CN" },
+      { code: "tw", name: "繁體中文", ja: "中国語（繁体字）", speech: "zh-TW" },
+      { code: "ko", name: "한국어", ja: "韓国語", speech: "ko-KR" },
+      { code: "th", name: "ไทย", ja: "タイ語", speech: "th-TH" },
+      { code: "vi", name: "Tiếng Việt", ja: "ベトナム語", speech: "vi-VN" },
+      { code: "id", name: "Bahasa Indonesia", ja: "インドネシア語", speech: "id-ID" },
+      { code: "ar", name: "العربية", ja: "アラビア語", speech: "ar-SA", rtl: true },
+    ];
+
+    // ---- 座席カードの見出し ----
+    const LABELS = {
+      title: { ja: "お客様のお席", en: "Your seat", zh: "您的座位", tw: "您的座位", ko: "고객님 좌석", th: "ที่นั่งของคุณ", vi: "Chỗ ngồi của bạn", id: "Tempat duduk Anda", ar: "مقعدك" },
+      gate:  { ja: "ゲート", en: "Gate", zh: "入口", tw: "入口", ko: "게이트", th: "ประตู", vi: "Cổng", id: "Gerbang", ar: "البوابة" },
+      stand: { ja: "スタンド", en: "Stand", zh: "看台", tw: "看台", ko: "스탠드", th: "อัฒจันทร์", vi: "Khán đài", id: "Tribun", ar: "المدرج" },
+      block: { ja: "ブロック", en: "Block", zh: "区", tw: "區", ko: "블록", th: "โซน", vi: "Khu", id: "Blok", ar: "القسم" },
+      row:   { ja: "列", en: "Row", zh: "排", tw: "排", ko: "열", th: "แถว", vi: "Hàng", id: "Baris", ar: "الصف" },
+      seat:  { ja: "番号", en: "Seat", zh: "座", tw: "座", ko: "번", th: "ที่นั่ง", vi: "Ghế", id: "Kursi", ar: "المقعد" },
+      way:   { ja: "こちらへお進みください", en: "Please go this way", zh: "请往这边走", tw: "請往這邊走", ko: "이쪽으로 가세요", th: "กรุณาไปทางนี้", vi: "Vui lòng đi hướng này", id: "Silakan lewat sini", ar: "من فضلك اذهب من هنا" },
+      kickoff: { ja: "キックオフ", en: "Kick-off", zh: "开球时间", tw: "開球時間", ko: "킥오프", th: "เวลาเริ่มแข่ง", vi: "Giờ bắt đầu", id: "Waktu mulai", ar: "موعد انطلاق المباراة" },
+      pick:  { ja: "言語を選んでください", en: "Please choose your language", zh: "请选择语言", tw: "請選擇語言", ko: "언어를 선택해 주세요", th: "กรุณาเลือกภาษา", vi: "Vui lòng chọn ngôn ngữ", id: "Silakan pilih bahasa", ar: "يرجى اختيار لغتك" },
+    };
+
+    const STANDS = {
+      main:  { ja: "メインスタンド", en: "Main Stand", zh: "主看台", tw: "主看台", ko: "메인 스탠드", th: "อัฒจันทร์หลัก", vi: "Khán đài chính", id: "Tribun Utama", ar: "المدرج الرئيسي" },
+      back:  { ja: "バックスタンド", en: "Back Stand", zh: "对面看台", tw: "對面看台", ko: "백 스탠드", th: "อัฒจันทร์ฝั่งตรงข้าม", vi: "Khán đài đối diện", id: "Tribun Seberang", ar: "المدرج المقابل" },
+      north: { ja: "北側スタンド", en: "North Stand", zh: "北看台", tw: "北看台", ko: "북측 스탠드", th: "อัฒจันทร์ทิศเหนือ", vi: "Khán đài Bắc", id: "Tribun Utara", ar: "المدرج الشمالي" },
+      south: { ja: "南側スタンド", en: "South Stand", zh: "南看台", tw: "南看台", ko: "남측 스탠드", th: "อัฒจันทร์ทิศใต้", vi: "Khán đài Nam", id: "Tribun Selatan", ar: "المدرج الجنوبي" },
+    };
+
+    // ---- 当日の試合時刻（9/25 準々決勝は2試合） ----
+    const KICKOFFS = ["15:00", "19:30"];
+
+    // ---- 定型フレーズ ----
+    const CATEGORIES = [
+      { id: "greet", name: "あいさつ・チケット" },
+      { id: "seat", name: "座席への案内" },
+      { id: "place", name: "施設の場所（指さしながら）" },
+      { id: "match", name: "試合・駐車場" },
+      { id: "rule", name: "お願い・ルール" },
+      { id: "sos", name: "緊急", emergency: true },
+    ];
+
+    const PHRASES = [
+      { cat: "greet", ja: "こんにちは。座席までご案内します。", en: "Hello! I'll help you find your seat.", zh: "您好！我来带您找座位。", tw: "您好！我來帶您找座位。", ko: "안녕하세요! 좌석을 안내해 드리겠습니다.", th: "สวัสดี! เราจะพาคุณไปที่นั่ง", vi: "Xin chào! Tôi sẽ hướng dẫn bạn đến chỗ ngồi.", id: "Halo! Saya akan mengantar Anda ke tempat duduk.", ar: "مرحبًا! سأساعدك في الوصول إلى مقعدك." },
+      { cat: "greet", ja: "チケットを見せてください。", en: "May I see your ticket, please?", zh: "请出示您的门票。", tw: "請出示您的門票。", ko: "티켓을 보여 주시겠어요?", th: "ขอดูตั๋วหน่อย", vi: "Vui lòng cho tôi xem vé của bạn.", id: "Boleh saya lihat tiket Anda?", ar: "هل يمكنني رؤية تذكرتك من فضلك؟" },
+      { cat: "greet", ja: "少々お待ちください。", en: "One moment, please.", zh: "请稍等。", tw: "請稍等。", ko: "잠시만 기다려 주세요.", th: "กรุณารอสักครู่", vi: "Xin vui lòng chờ một chút.", id: "Mohon tunggu sebentar.", ar: "لحظة من فضلك." },
+      { cat: "greet", ja: "ありがとうございます。試合を楽しんでください！", en: "Thank you! Enjoy the match!", zh: "谢谢！祝您观赛愉快！", tw: "謝謝！祝您觀賽愉快！", ko: "감사합니다! 즐거운 관람 되세요!", th: "ขอบคุณ! ขอให้สนุกกับการชมการแข่งขัน!", vi: "Cảm ơn! Chúc bạn xem trận đấu vui vẻ!", id: "Terima kasih! Selamat menikmati pertandingan!", ar: "شكرًا لك! استمتع بالمباراة!" },
+
+      { cat: "seat", ja: "私についてきてください。", en: "Please follow me.", zh: "请跟我来。", tw: "請跟我來。", ko: "저를 따라오세요.", th: "กรุณาตามมาทางนี้", vi: "Vui lòng đi theo tôi.", id: "Silakan ikuti saya.", ar: "من فضلك اتبعني." },
+      { cat: "seat", ja: "お席はこちらです。", en: "Here is your seat.", zh: "这是您的座位。", tw: "這是您的座位。", ko: "여기가 고객님 좌석입니다.", th: "ที่นั่งของคุณอยู่ตรงนี้", vi: "Đây là chỗ ngồi của bạn.", id: "Ini tempat duduk Anda.", ar: "هذا هو مقعدك." },
+      { cat: "seat", ja: "この階段を上がってください。", en: "Please go up these stairs.", zh: "请走这个楼梯上去。", tw: "請走這個樓梯上去。", ko: "이 계단으로 올라가 주세요.", th: "กรุณาขึ้นบันไดนี้", vi: "Vui lòng đi lên cầu thang này.", id: "Silakan naik tangga ini.", ar: "من فضلك اصعد هذا الدرج." },
+      { cat: "seat", ja: "この階段を下りてください。", en: "Please go down these stairs.", zh: "请走这个楼梯下去。", tw: "請走這個樓梯下去。", ko: "이 계단으로 내려가 주세요.", th: "กรุณาลงบันไดนี้", vi: "Vui lòng đi xuống cầu thang này.", id: "Silakan turun tangga ini.", ar: "من فضلك انزل هذا الدرج." },
+      { cat: "seat", ja: "このブロックではありません。別のブロックです。", en: "This is not your block. Your seat is in a different block.", zh: "不是这个区域，您的座位在其他区域。", tw: "不是這個區域，您的座位在其他區域。", ko: "이 블록이 아닙니다. 다른 블록입니다.", th: "ไม่ใช่โซนนี้ ที่นั่งของคุณอยู่อีกโซนหนึ่ง", vi: "Không phải khu này. Chỗ của bạn ở khu khác.", id: "Bukan di blok ini. Tempat duduk Anda di blok lain.", ar: "هذا ليس قسمك. مقعدك في قسم آخر." },
+      { cat: "seat", ja: "このゲートからは入れません。別のゲートへお回りください。", en: "You cannot enter through this gate. Please go to another gate.", zh: "此入口无法入场，请前往其他入口。", tw: "此入口無法入場，請前往其他入口。", ko: "이 게이트로는 입장할 수 없습니다. 다른 게이트로 가 주세요.", th: "ไม่สามารถเข้าทางประตูนี้ได้ กรุณาไปที่ประตูอื่น", vi: "Bạn không thể vào cổng này. Vui lòng đi đến cổng khác.", id: "Anda tidak bisa masuk lewat gerbang ini. Silakan ke gerbang lain.", ar: "لا يمكنك الدخول من هذه البوابة. يرجى التوجه إلى بوابة أخرى." },
+      { cat: "seat", ja: "自由席です。空いている席にお座りください。", en: "This is unreserved seating. Please sit in any open seat.", zh: "这里是自由席，请随意入座空位。", tw: "這裡是自由座，請隨意入座空位。", ko: "자유석입니다. 빈자리에 앉아 주세요.", th: "เป็นที่นั่งอิสระ กรุณานั่งที่ว่างได้เลย", vi: "Đây là khu ghế tự do. Vui lòng ngồi vào ghế trống bất kỳ.", id: "Ini tempat duduk bebas. Silakan duduk di kursi yang kosong.", ar: "هذه مقاعد غير محجوزة. يرجى الجلوس في أي مقعد شاغر." },
+      { cat: "seat", ja: "そのお席は別のお客様の席です。チケットを確認させてください。", en: "That seat belongs to another guest. May I check your ticket?", zh: "那是其他观众的座位，请让我确认一下您的门票。", tw: "那是其他觀眾的座位，請讓我確認一下您的門票。", ko: "그 좌석은 다른 분의 좌석입니다. 티켓을 확인해도 될까요?", th: "ที่นั่งนั้นเป็นของผู้ชมท่านอื่น ขอตรวจสอบตั๋วหน่อย", vi: "Ghế đó là của khách khác. Cho tôi kiểm tra vé của bạn nhé.", id: "Kursi itu milik penonton lain. Boleh saya cek tiket Anda?", ar: "هذا المقعد لضيف آخر. هل يمكنني التحقق من تذكرتك؟" },
+      { cat: "seat", ja: "プレーが止まるまで、ここでお待ちください。", en: "Please wait here until play stops.", zh: "请在这里等到比赛暂停。", tw: "請在這裡等到比賽暫停。", ko: "경기가 멈출 때까지 여기서 기다려 주세요.", th: "กรุณารอตรงนี้จนกว่าเกมจะหยุด", vi: "Vui lòng đợi ở đây cho đến khi trận đấu tạm dừng.", id: "Mohon tunggu di sini sampai permainan berhenti.", ar: "يرجى الانتظار هنا حتى يتوقف اللعب." },
+
+      { cat: "place", ja: "トイレはあちらです。", en: "The restroom is that way.", zh: "洗手间在那边。", tw: "洗手間在那邊。", ko: "화장실은 저쪽입니다.", th: "ห้องน้ำอยู่ทางนั้น", vi: "Nhà vệ sinh ở phía kia.", id: "Toilet ada di sebelah sana.", ar: "دورة المياه في ذلك الاتجاه." },
+      { cat: "place", ja: "救護室はあちらです。", en: "The first aid room is that way.", zh: "医务室在那边。", tw: "醫務室在那邊。", ko: "구호실은 저쪽입니다.", th: "ห้องปฐมพยาบาลอยู่ทางนั้น", vi: "Phòng sơ cứu ở phía kia.", id: "Ruang P3K ada di sebelah sana.", ar: "غرفة الإسعافات الأولية في ذلك الاتجاه." },
+      { cat: "place", ja: "売店はあちらです。", en: "Food and drinks are that way.", zh: "小卖部在那边。", tw: "販賣部在那邊。", ko: "매점은 저쪽입니다.", th: "ร้านขายอาหารและเครื่องดื่มอยู่ทางนั้น", vi: "Quầy bán đồ ăn uống ở phía kia.", id: "Kios makanan dan minuman ada di sebelah sana.", ar: "أكشاك الطعام والمشروبات في ذلك الاتجاه." },
+      { cat: "place", ja: "エレベーターはあちらです。", en: "The elevator is that way.", zh: "电梯在那边。", tw: "電梯在那邊。", ko: "엘리베이터는 저쪽입니다.", th: "ลิฟต์อยู่ทางนั้น", vi: "Thang máy ở phía kia.", id: "Lift ada di sebelah sana.", ar: "المصعد في ذلك الاتجاه." },
+      { cat: "place", ja: "車椅子席はあちらです。", en: "Wheelchair seating is that way.", zh: "轮椅席在那边。", tw: "輪椅席在那邊。", ko: "휠체어석은 저쪽입니다.", th: "ที่นั่งสำหรับรถเข็นอยู่ทางนั้น", vi: "Khu ghế dành cho xe lăn ở phía kia.", id: "Area kursi roda ada di sebelah sana.", ar: "أماكن الكراسي المتحركة في ذلك الاتجاه." },
+      { cat: "place", ja: "授乳室はあちらです。", en: "The nursing room is that way.", zh: "哺乳室在那边。", tw: "哺乳室在那邊。", ko: "수유실은 저쪽입니다.", th: "ห้องให้นมบุตรอยู่ทางนั้น", vi: "Phòng cho con bú ở phía kia.", id: "Ruang menyusui ada di sebelah sana.", ar: "غرفة الرضاعة في ذلك الاتجاه." },
+      { cat: "place", ja: "案内所はあちらです。落とし物もそこで対応します。", en: "The information desk is that way. They also handle lost items.", zh: "咨询处在那边，失物也在那里处理。", tw: "服務台在那邊，遺失物也在那裡處理。", ko: "안내소는 저쪽입니다. 분실물도 그곳에서 처리합니다.", th: "จุดประชาสัมพันธ์อยู่ทางนั้น รับแจ้งของหายด้วย", vi: "Quầy thông tin ở phía kia. Đồ thất lạc cũng được xử lý tại đó.", id: "Meja informasi ada di sebelah sana. Barang hilang juga diurus di sana.", ar: "مكتب الاستعلامات في ذلك الاتجاه، ويتولى أيضًا المفقودات." },
+      { cat: "place", ja: "お祈りできる場所を確認します。少々お待ちください。", en: "Let me check where you can pray. One moment, please.", zh: "我帮您确认可以祈祷的地方，请稍等。", tw: "我幫您確認可以祈禱的地方，請稍等。", ko: "기도할 수 있는 장소를 확인해 드리겠습니다. 잠시만 기다려 주세요.", th: "ขอตรวจสอบสถานที่ละหมาดให้ก่อน กรุณารอสักครู่", vi: "Tôi sẽ kiểm tra nơi bạn có thể cầu nguyện. Xin chờ một chút.", id: "Saya akan cek tempat untuk salat. Mohon tunggu sebentar.", ar: "دعني أتحقق من مكان مخصص للصلاة. لحظة من فضلك." },
+
+      { cat: "match", ja: "本日は2試合あります。", en: "There are two matches today.", zh: "今天有两场比赛。", tw: "今天有兩場比賽。", ko: "오늘은 두 경기가 있습니다.", th: "วันนี้มีการแข่งขันสองนัด", vi: "Hôm nay có hai trận đấu.", id: "Hari ini ada dua pertandingan.", ar: "هناك مباراتان اليوم." },
+      { cat: "match", ja: "2試合目も観られるか確認します。少々お待ちください。", en: "Let me check whether your ticket is valid for the second match. One moment, please.", zh: "我帮您确认门票是否可以观看第二场比赛，请稍等。", tw: "我幫您確認門票是否可以觀看第二場比賽，請稍等。", ko: "두 번째 경기도 관람 가능한지 확인해 드리겠습니다. 잠시만 기다려 주세요.", th: "ขอตรวจสอบก่อนว่าตั๋วนี้ดูนัดที่สองได้หรือไม่ กรุณารอสักครู่", vi: "Tôi sẽ kiểm tra xem vé của bạn có xem được trận thứ hai không. Xin chờ một chút.", id: "Saya akan cek apakah tiket Anda berlaku untuk pertandingan kedua. Mohon tunggu sebentar.", ar: "دعني أتحقق مما إذا كانت تذكرتك صالحة للمباراة الثانية. لحظة من فضلك." },
+      { cat: "match", ja: "会場には一般のお客様用の駐車場はありません。", en: "There is no parking for general visitors at this venue.", zh: "本场馆没有供一般观众使用的停车场。", tw: "本場館沒有供一般觀眾使用的停車場。", ko: "이 경기장에는 일반 관람객용 주차장이 없습니다.", th: "สนามนี้ไม่มีที่จอดรถสำหรับผู้ชมทั่วไป", vi: "Địa điểm này không có bãi đỗ xe cho khách thông thường.", id: "Tidak ada tempat parkir untuk pengunjung umum di tempat ini.", ar: "لا يوجد موقف سيارات للزوار العاديين في هذا الملعب." },
+
+      { cat: "rule", ja: "客席では喫煙できません。", en: "Smoking is not allowed in the seating area.", zh: "观众席内禁止吸烟。", tw: "觀眾席內禁止吸菸。", ko: "관람석에서는 흡연할 수 없습니다.", th: "ห้ามสูบบุหรี่ในบริเวณที่นั่งชม", vi: "Không được hút thuốc tại khu vực khán đài.", id: "Dilarang merokok di area tempat duduk.", ar: "التدخين غير مسموح به في منطقة المقاعد." },
+      { cat: "rule", ja: "通路で立ち止まらないでください。", en: "Please do not stand in the aisle.", zh: "请不要在通道停留。", tw: "請不要在走道停留。", ko: "통로에 멈춰 서지 말아 주세요.", th: "กรุณาอย่ายืนขวางทางเดิน", vi: "Vui lòng không đứng lại ở lối đi.", id: "Mohon jangan berdiri di lorong.", ar: "يرجى عدم الوقوف في الممر." },
+      { cat: "rule", ja: "通路に荷物を置かないでください。", en: "Please do not leave bags in the aisle.", zh: "请不要把行李放在通道上。", tw: "請不要把行李放在走道上。", ko: "통로에 짐을 두지 말아 주세요.", th: "กรุณาอย่าวางสัมภาระไว้ที่ทางเดิน", vi: "Vui lòng không để hành lý ở lối đi.", id: "Mohon jangan menaruh barang di lorong.", ar: "يرجى عدم ترك الأمتعة في الممر." },
+      { cat: "rule", ja: "後ろの方が見えるよう、座ってご覧ください。", en: "Please remain seated so people behind you can see.", zh: "请坐着观赛，以免挡住后面观众的视线。", tw: "請坐著觀賽，以免擋住後方觀眾的視線。", ko: "뒷분들이 볼 수 있도록 앉아서 관람해 주세요.", th: "กรุณานั่งชม เพื่อให้คนข้างหลังมองเห็น", vi: "Vui lòng ngồi xem để người phía sau có thể nhìn thấy.", id: "Mohon tetap duduk agar penonton di belakang bisa melihat.", ar: "يرجى البقاء جالسًا حتى يتمكن من خلفك من الرؤية." },
+      { cat: "rule", ja: "再入場できます。チケットをなくさないでください。", en: "Re-entry is allowed. Please keep your ticket.", zh: "可以再次入场，请保管好门票。", tw: "可以再次入場，請保管好門票。", ko: "재입장이 가능합니다. 티켓을 잘 보관해 주세요.", th: "สามารถกลับเข้ามาใหม่ได้ กรุณาเก็บตั๋วไว้ให้ดี", vi: "Bạn có thể vào lại. Vui lòng giữ vé cẩn thận.", id: "Boleh masuk kembali. Mohon simpan tiket Anda.", ar: "يُسمح بإعادة الدخول. يرجى الاحتفاظ بتذكرتك." },
+      { cat: "rule", ja: "再入場はできません。", en: "Re-entry is not allowed.", zh: "不可再次入场。", tw: "不可再次入場。", ko: "재입장은 불가능합니다.", th: "ไม่สามารถกลับเข้ามาใหม่ได้", vi: "Không được phép vào lại.", id: "Tidak boleh masuk kembali.", ar: "لا يُسمح بإعادة الدخول." },
+
+      { cat: "sos", ja: "大丈夫ですか？", en: "Are you okay?", zh: "您还好吗？", tw: "您還好嗎？", ko: "괜찮으세요?", th: "คุณโอเคไหม?", vi: "Bạn có sao không?", id: "Apakah Anda baik-baik saja?", ar: "هل أنت بخير؟" },
+      { cat: "sos", ja: "救護スタッフを呼びます。ここにいてください。", en: "I will call the medical staff. Please stay here.", zh: "我去叫医护人员，请留在这里。", tw: "我去叫醫護人員，請留在這裡。", ko: "의료진을 부르겠습니다. 여기 계세요.", th: "จะเรียกเจ้าหน้าที่พยาบาลให้ กรุณาอยู่ตรงนี้", vi: "Tôi sẽ gọi nhân viên y tế. Vui lòng ở lại đây.", id: "Saya akan memanggil petugas medis. Mohon tetap di sini.", ar: "سأستدعي الطاقم الطبي. يرجى البقاء هنا." },
+      { cat: "sos", ja: "落ち着いて、係員の指示に従ってください。", en: "Please stay calm and follow the staff's instructions.", zh: "请保持冷静，听从工作人员的指示。", tw: "請保持冷靜，聽從工作人員的指示。", ko: "침착하게 직원의 안내에 따라 주세요.", th: "กรุณาใจเย็น และทำตามคำแนะนำของเจ้าหน้าที่", vi: "Vui lòng bình tĩnh và làm theo hướng dẫn của nhân viên.", id: "Mohon tenang dan ikuti arahan petugas.", ar: "يرجى الحفاظ على الهدوء واتباع تعليمات الموظفين." },
+      { cat: "sos", ja: "非常口はあちらです。", en: "The emergency exit is that way.", zh: "紧急出口在那边。", tw: "緊急出口在那邊。", ko: "비상구는 저쪽입니다.", th: "ทางออกฉุกเฉินอยู่ทางนั้น", vi: "Lối thoát hiểm ở phía kia.", id: "Pintu darurat ada di sebelah sana.", ar: "مخرج الطوارئ في ذلك الاتجاه." },
+      { cat: "sos", ja: "迷子ですか？一緒に案内所へ行きましょう。", en: "Are you lost? Let's go to the information desk together.", zh: "您迷路了吗？我们一起去咨询处吧。", tw: "您迷路了嗎？我們一起去服務台吧。", ko: "길을 잃으셨나요? 함께 안내소로 가요.", th: "หลงทางหรือเปล่า? ไปจุดประชาสัมพันธ์ด้วยกันนะ", vi: "Bạn bị lạc à? Chúng ta cùng đến quầy thông tin nhé.", id: "Apakah Anda tersesat? Mari kita ke meja informasi bersama.", ar: "هل أنت تائه؟ لنذهب معًا إلى مكتب الاستعلامات." },
+    ];
+
+    // ---- お客様の返事 ----
+    const REPLIES = [
+      { ja: "はい", en: "Yes", zh: "是", tw: "是", ko: "네", th: "ใช่", vi: "Có", id: "Ya", ar: "نعم" },
+      { ja: "いいえ", en: "No", zh: "不是", tw: "不是", ko: "아니요", th: "ไม่ใช่", vi: "Không", id: "Tidak", ar: "لا" },
+      { ja: "わかりません", en: "I don't understand", zh: "我不明白", tw: "我不明白", ko: "이해가 안 돼요", th: "ไม่เข้าใจ", vi: "Tôi không hiểu", id: "Saya tidak mengerti", ar: "لا أفهم" },
+      { ja: "ありがとう", en: "Thank you", zh: "谢谢", tw: "謝謝", ko: "감사합니다", th: "ขอบคุณ", vi: "Cảm ơn", id: "Terima kasih", ar: "شكرًا" },
+      { ja: "トイレに行きたい", en: "I need a restroom", zh: "我想去洗手间", tw: "我想去洗手間", ko: "화장실에 가고 싶어요", th: "อยากไปห้องน้ำ", vi: "Tôi muốn đi vệ sinh", id: "Saya perlu ke toilet", ar: "أحتاج إلى دورة المياه" },
+      { ja: "気分が悪い", en: "I feel sick", zh: "我不舒服", tw: "我不舒服", ko: "몸이 안 좋아요", th: "รู้สึกไม่สบาย", vi: "Tôi thấy không khỏe", id: "Saya merasa tidak enak badan", ar: "أشعر بتوعك" },
+      { ja: "連れとはぐれた", en: "I lost my companion", zh: "我和同伴走散了", tw: "我和同伴走散了", ko: "일행을 잃어버렸어요", th: "หลงกับเพื่อนที่มาด้วย", vi: "Tôi bị lạc người đi cùng", id: "Saya terpisah dari teman saya", ar: "فقدت مرافقي" },
+      { ja: "落とし物をした", en: "I lost something", zh: "我丢了东西", tw: "我掉了東西", ko: "물건을 잃어버렸어요", th: "ทำของหาย", vi: "Tôi bị mất đồ", id: "Saya kehilangan barang", ar: "فقدت شيئًا" },
+    ];
+
+    // ---- 状態 ----
+    const store = {
+      get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+      set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 保存できなくても動かす */ } },
+    };
+    let lang = LANGS.find(l => l.code === store.get("seatGuide.lang")) || LANGS[0];
+    let arrow = "";
+    let speakText = "";
+
+    const $ = id => document.getElementById(id);
+    const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+    // ---- タブ ----
+    document.querySelectorAll("nav.tabs button").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b === btn)));
+        ["seat", "phrases", "reply"].forEach(t => { $("tab-" + t).hidden = t !== btn.dataset.tab; });
+      });
+    });
+
+    // ---- 言語選択 ----
+    function renderLangButton() {
+      $("langBtn").textContent = "🌐 " + lang.name;
+    }
+    function openLangPicker() {
+      $("langHead").innerHTML = LANGS.map(l => `<div dir="${l.rtl ? "rtl" : "ltr"}">${esc(LABELS.pick[l.code])}</div>`).join("");
+      $("langGrid").innerHTML = LANGS.map(l =>
+        `<button type="button" data-code="${l.code}" aria-pressed="${l.code === lang.code}">${esc(l.name)}<small>${esc(l.ja)}</small></button>`
+      ).join("");
+      $("langOverlay").hidden = false;
+    }
+    $("langBtn").addEventListener("click", openLangPicker);
+    $("langClose").addEventListener("click", () => { $("langOverlay").hidden = true; });
+    $("langGrid").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-code]");
+      if (!btn) return;
+      lang = LANGS.find(l => l.code === btn.dataset.code);
+      store.set("seatGuide.lang", lang.code);
+      renderLangButton();
+      renderPhrases();
+      renderReplies();
+      $("langOverlay").hidden = true;
+    });
+
+    // ---- 全画面表示 ----
+    function openShow(html, textForSpeech, dirRtl) {
+      const body = $("showBody");
+      body.innerHTML = html;
+      body.setAttribute("dir", dirRtl ? "rtl" : "ltr");
+      speakText = textForSpeech;
+      $("speakBtn").disabled = !textForSpeech || !("speechSynthesis" in window);
+      $("showOverlay").classList.remove("flipped");
+      $("showOverlay").hidden = false;
+    }
+    $("flipBtn").addEventListener("click", () => $("showOverlay").classList.toggle("flipped"));
+    $("closeBtn").addEventListener("click", () => {
+      if ("speechSynthesis" in window) speechSynthesis.cancel();
+      $("showOverlay").hidden = true;
+    });
+    $("speakBtn").addEventListener("click", () => {
+      if (!speakText || !("speechSynthesis" in window)) return;
+      speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(speakText);
+      u.lang = lang.speech;
+      speechSynthesis.speak(u);
+    });
+
+    // ---- 座席 ----
+    $("arrows").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-arrow]");
+      if (!btn) return;
+      arrow = arrow === btn.dataset.arrow ? "" : btn.dataset.arrow;
+      document.querySelectorAll("#arrows button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.arrow === arrow)));
+    });
+
+    $("showSeat").addEventListener("click", () => {
+      const c = lang.code;
+      const stand = $("fStand").value;
+      const rows = [
+        ["gate", $("fGate").value.trim()],
+        ["stand", stand ? STANDS[stand][c] : ""],
+        ["block", $("fBlock").value.trim()],
+        ["row", $("fRow").value.trim()],
+        ["seat", $("fSeat").value.trim()],
+      ].filter(([, v]) => v);
+
+      if (!rows.length && !arrow) {
+        alert("座席情報か方向を入力してください。");
+        return;
+      }
+      const table = rows.length
+        ? `<table class="seat-table">${rows.map(([k, v]) => `<tr><th>${esc(LABELS[k][c])}</th><td>${esc(v)}</td></tr>`).join("")}</table>`
+        : "";
+      const jaLine = rows.map(([k, v]) => `${LABELS[k].ja} ${k === "stand" ? STANDS[stand].ja : v}`).join(" / ");
+      const html =
+        `<div class="big">${esc(LABELS.title[c])}</div>` +
+        table +
+        (arrow ? `<div class="arrow-big" dir="ltr">${arrow}</div><div class="big" style="font-size:clamp(22px,6vw,36px)">${esc(LABELS.way[c])}</div>` : "") +
+        `<div class="ja" dir="ltr">${esc(jaLine || LABELS.way.ja)}</div>`;
+      openShow(html, arrow ? LABELS.way[c] : LABELS.title[c], lang.rtl);
+    });
+
+    // ---- キックオフ時刻 ----
+    $("kickoffs").innerHTML = KICKOFFS.map(t => `<button type="button" data-time="${t}">${t}</button>`).join("");
+    $("kickoffs").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-time]");
+      if (!btn) return;
+      const c = lang.code;
+      openShow(
+        `<div class="big">${esc(LABELS.kickoff[c])}</div><div class="arrow-big" dir="ltr" style="font-size:clamp(64px,22vw,140px)">${btn.dataset.time}</div><div class="ja" dir="ltr">キックオフ ${btn.dataset.time}</div>`,
+        `${LABELS.kickoff[c]} ${btn.dataset.time}`, lang.rtl);
+    });
+
+    // ---- フレーズ ----
+    function renderPhrases() {
+      const q = $("search").value.trim();
+      const c = lang.code;
+      $("phraseList").innerHTML = CATEGORIES.map(cat => {
+        const items = PHRASES
+          .map((p, i) => ({ p, i }))
+          .filter(({ p }) => p.cat === cat.id && (!q || p.ja.includes(q) || p[c].toLowerCase().includes(q.toLowerCase())));
+        if (!items.length) return "";
+        return `<div class="cat-title">${esc(cat.name)}</div>` + items.map(({ p, i }) =>
+          `<button type="button" class="phrase${cat.emergency ? " emergency" : ""}" data-i="${i}">${esc(p.ja)}<span class="sub" dir="${lang.rtl ? "rtl" : "ltr"}">${esc(p[c])}</span></button>`
+        ).join("");
+      }).join("") || `<p class="hint">見つかりませんでした。</p>`;
+    }
+    $("search").addEventListener("input", renderPhrases);
+    $("phraseList").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-i]");
+      if (!btn) return;
+      const p = PHRASES[Number(btn.dataset.i)];
+      openShow(`<div class="big">${esc(p[lang.code])}</div><div class="ja" dir="ltr">${esc(p.ja)}</div>`, p[lang.code], lang.rtl);
+    });
+
+    // ---- 返事 ----
+    function renderReplies() {
+      $("replyGrid").innerHTML = REPLIES.map((r, i) =>
+        `<button type="button" class="reply" data-i="${i}"><span dir="${lang.rtl ? "rtl" : "ltr"}">${esc(r[lang.code])}</span><span class="sub">${esc(r.ja)}</span></button>`
+      ).join("");
+    }
+    $("replyGrid").addEventListener("click", e => {
+      const btn = e.target.closest("button[data-i]");
+      if (!btn) return;
+      const r = REPLIES[Number(btn.dataset.i)];
+      // スタッフが読むので日本語を大きく
+      openShow(`<div class="big">${esc(r.ja)}</div><div class="ja" dir="${lang.rtl ? "rtl" : "ltr"}">${esc(r[lang.code])}</div>`, "", false);
+    });
+
+    // ---- 起動 ----
+    renderLangButton();
+    renderPhrases();
+    renderReplies();
+
+    if ("serviceWorker" in navigator && location.protocol === "https:") {
+      navigator.serviceWorker.register("seat-guide-sw.js").catch(() => { /* オフライン非対応でも動かす */ });
+    }
+  </script>
+</body>
+</html>
