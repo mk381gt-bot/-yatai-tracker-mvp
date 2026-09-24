@@ -30,7 +30,7 @@
       --sos-bg: #2a1716; --sos-line: #6b2b27; --warn: #ff8a80; --ok: #6fd3a0;
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; height: 100%; }
+    html, body { margin: 0; min-height: 100%; }
     body {
       background: var(--bg);
       color: var(--ink);
@@ -40,12 +40,14 @@
     button { font: inherit; color: inherit; cursor: pointer; }
 
     header {
-      position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+      position: sticky; top: env(safe-area-inset-top, 0px); z-index: 30;
       display: flex; align-items: center; gap: 8px;
       padding: 10px 12px;
       background: var(--accent); color: var(--accent-ink);
     }
-    header h1 { font-size: 16px; margin: 0; flex: 1; }
+    header h1 { font-size: 16px; margin: 0; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .lang-btn { white-space: nowrap; }
+    .rotate-btn[aria-pressed="true"] { background: #fff; color: #0b3d91; border-color: #fff; }
     .lang-btn {
       border: 2px solid rgba(255,255,255,.6); background: rgba(255,255,255,.12);
       border-radius: 999px; padding: 6px 14px; font-weight: 700; color: #fff;
@@ -98,7 +100,7 @@
 
     /* 全画面表示（お客様に見せる画面） */
     .overlay {
-      position: fixed; inset: 0; z-index: 20; background: var(--panel);
+      position: fixed; inset: var(--hdr, 0px) 0 0 0; z-index: 20; background: var(--panel);
       display: flex; flex-direction: column;
     }
     .overlay[hidden] { display: none; }
@@ -106,12 +108,14 @@
       flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
       padding: calc(24px + env(safe-area-inset-top, 0px)) 24px 24px; text-align: center; overflow: auto; transition: transform .25s;
     }
-    .overlay.flipped .show { transform: rotate(180deg); }
+    /* 回転中（向かい合わせ）。ヘッダーと操作ボタンはスタッフ用なので回さない */
+    body.flipped main, body.flipped .overlay .show, body.flipped .lang-head, body.flipped .lang-grid { transform: rotate(180deg); }
+    main, .lang-head, .lang-grid { transition: transform .25s; }
     .show .big { font-size: clamp(30px, 8vw, 56px); font-weight: 800; line-height: 1.35; word-break: break-word; }
     .show .ja { margin-top: 18px; font-size: 16px; color: var(--muted); }
     .show .arrow-big { font-size: clamp(90px, 30vw, 180px); line-height: 1; margin: 8px 0; color: var(--accent-text); }
     .overlay .controls {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+      display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
       background: var(--bg); border-top: 1px solid var(--line);
     }
     .overlay .controls button { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 14px 4px; font-weight: 700; }
@@ -153,11 +157,12 @@
     .history { margin-top: 8px; display: flex; flex-direction: column; gap: 8px; }
     .history button { text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 10px 12px; font-size: 15px; line-height: 1.4; }
     .history .who { font-size: 11px; font-weight: 800; letter-spacing: .04em; color: var(--muted); display: block; margin-bottom: 2px; }
-    @media (prefers-reduced-motion: reduce) { .overlay .show { transition: none; } }
+    @media (prefers-reduced-motion: reduce) { .overlay .show, main, .lang-head, .lang-grid { transition: none; } }
 </style>
 
   <header>
     <h1>席案内トランスレーター</h1>
+    <button class="lang-btn rotate-btn" id="rotateBtn" type="button" aria-pressed="false">↻ 回転</button>
     <button class="lang-btn" id="langBtn" type="button">🌐 English</button>
   </header>
 
@@ -216,7 +221,6 @@
   <div class="overlay" id="showOverlay" hidden>
     <div class="show" id="showBody"></div>
     <div class="controls">
-      <button type="button" id="flipBtn">↻ 上下反転</button>
       <button type="button" id="speakBtn">🔊 読み上げ</button>
       <button type="button" id="closeBtn">✕ 閉じる</button>
     </div>
@@ -369,10 +373,15 @@
       body.setAttribute("dir", dirRtl ? "rtl" : "ltr");
       speakText = textForSpeech;
       $("speakBtn").disabled = !textForSpeech || !("speechSynthesis" in window);
-      $("showOverlay").classList.remove("flipped");
       $("showOverlay").hidden = false;
     }
-    $("flipBtn").addEventListener("click", () => $("showOverlay").classList.toggle("flipped"));
+    // 回転ボタン（常にヘッダーに表示。どの画面でも向かい合わせにできる）
+    $("rotateBtn").addEventListener("click", () => {
+      const on = document.body.classList.toggle("flipped");
+      $("rotateBtn").setAttribute("aria-pressed", String(on));
+      // 見ていた場所がそのまま画面に残るよう、スクロール位置も反転する
+      scrollTo(0, document.documentElement.scrollHeight - innerHeight - scrollY);
+    });
     $("closeBtn").addEventListener("click", () => {
       if ("speechSynthesis" in window) speechSynthesis.cancel();
       $("showOverlay").hidden = true;
@@ -436,6 +445,12 @@
     renderLangButton();
     renderPhrases();
     renderReplies();
+    // 全画面表示をヘッダーの下に置くため、ヘッダーの下端を測る
+    const fitHeader = () => document.documentElement.style.setProperty("--hdr", document.querySelector("header").getBoundingClientRect().bottom + "px");
+    fitHeader();
+    addEventListener("resize", fitHeader);
+    // 最初は言語選択から
+    openLangPicker();
 
     // ---- Claude（自由翻訳） ----
     const LANG_EN = { en: "English", zh: "Simplified Chinese", tw: "Traditional Chinese (Taiwan)", ko: "Korean", th: "Thai", vi: "Vietnamese", id: "Indonesian", ar: "Arabic" };
