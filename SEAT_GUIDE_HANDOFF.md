@@ -30,12 +30,12 @@
 | `seat-guide.html` | 本体。1ファイル完結、外部依存なし。定型文のみでオフライン動作 |
 | `seat-guide-sw.js` | Service Worker（HTTPSで公開時にオフラインキャッシュ） |
 | `seat-guide.webmanifest` | ホーム画面追加用 |
-| `seat-guide-claude-artifact.html` | claude.ai Artifact 版（下記4章）。`seat-guide.html` ＋ 自由翻訳 ＋ チケット写真読み取り |
+| `seat-guide-claude-artifact.html` | claude.ai Artifact 版（下記4章）。3画面「伝える／自由翻訳／返事」。座席入力・チケット写真読み取りはなし |
 | `README.md` | 末尾に席案内の説明あり |
 
 ## 3. `seat-guide.html` の機能
 
-タブ構成: **座席 / フレーズ / お客様の返事**（Artifact 版は「自由翻訳」タブが加わり4つ）
+タブ構成: **座席 / フレーズ / お客様の返事**（Artifact 版は構成が違う。4章参照）
 
 1. **言語選択**: ヘッダーの 🌐 ボタン → 各言語を自国語表記で表示してお客様に選んでもらう。`localStorage`（`seatGuide.lang`）に保存。
    - 対応 8 言語: `en` 英語 / `zh` 簡体 / `tw` 繁体 / `ko` 韓国語 / `th` タイ語 / `vi` ベトナム語 / `id` インドネシア語 / `ar` アラビア語（RTL）
@@ -57,11 +57,13 @@
 
 ## 4. Artifact 版（`seat-guide-claude-artifact.html`）
 
-- 公開 URL: https://claude.ai/artifact/9B3LAdq37p9wKEWG5pT4sf （現在オーナーのみ閲覧可。他スタッフに使わせるなら共有設定が必要）
+- 公開 URL: https://claude.ai/artifact/QX1KG7oWDVccymAiTs9PVd （現在オーナーのみ閲覧可。他スタッフに使わせるなら共有設定が必要）。旧 URL 9B3LAdq37p9wKEWG5pT4sf は古い4タブ版
+- 画面は **伝える / 自由翻訳 / 返事** の3つ（2026-09-24 変更）。
+  - **伝える**: 上部にキックオフ時刻ボタン（`KICKOFFS`）、その下に定型フレーズ（`seat-guide.html` の「フレーズ」と同じ）。
+  - 座席番号の入力画面とチケット写真読み取りは不要との指示で削除。`STANDS` と座席用 `LABELS` も Artifact 版からは削除済み。
 - claude.ai の Artifact 用なので `<html>/<head>/<body>` タグなし（公開時に自動で包まれる）。ダークモード対応済み。
 - `window.claude.use("sample")` で Claude を呼ぶ（閲覧者の Claude 利用枠を消費、初回に許可ダイアログ）。
   - **自由翻訳タブ**: 「スタッフ→お客様」「お客様→スタッフ」を切替。`sample.json(..., {modelTier:"quick"})` で `{translation, back}` を返させ、逆翻訳を確認用に表示。直近6件の履歴。
-  - **チケット写真読み取り**: `<input type=file capture>` の画像を `sample.json` に渡し `{gate, stand, standText, block, row, seat}` を取得して座席欄に入れる。
 - 制約: Artifact 内ではマイク・Service Worker・`alert()` が使えない。音声はスマホキーボードの音声入力で代用。
 - **未検証**: Claude 呼び出し部分は開発環境から実行できず、実機（claude.ai 上）で一度も動作確認していない。
 - 定型文データは `seat-guide.html` と同一。**片方を直したらもう片方にも反映すること**（現状は手動コピー。共通化は TODO）。
@@ -73,7 +75,7 @@
 - [ ] チケットで2試合観られるか → 判明したら `match` に「2試合とも観られます」または「試合ごとに入れ替えです」を追加。
 - [ ] 再入場の可否 → `rule` に両方の文があるので、当日ルールが決まれば不要な方を消す。
 - [ ] 礼拝スペースの有無 → 現状は「確認します」の文のみ。
-- [ ] Artifact 版の自由翻訳・写真読み取りを実機で試す。
+- [ ] Artifact 版の自由翻訳を実機で試す。
 - [ ] 公開方法: GitHub Pages を有効にすれば `https://<user>.github.io/-yatai-tracker-mvp/seat-guide.html` で配布でき、HTTPS なので SW によるオフライン動作も効く。
 
 ## 6. 今後のアイデア（優先度順）
