@@ -32,6 +32,8 @@ seat-guide.html           アジア大会（エコパ）席案内トランスレ
 seat-guide-sw.js          席案内のオフライン用キャッシュ
 seat-guide.webmanifest    席案内をホーム画面に追加するための設定
 README.md                 この説明書
+SEAT_GUIDE_HANDOFF.md     席案内トランスレーターの引き継ぎメモ
+seat-guide-claude-artifact.html  席案内のclaude.ai Artifact版（自由翻訳つき）
 operation-checklist.md    当日運用チェックリスト
 firebase-rules-notes.md   Firebase Security Rulesの注意メモ
 test-log.md               実機テスト記録表
