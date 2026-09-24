@@ -132,6 +132,14 @@
     .dir-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
     .dir-switch button { border: 0; background: var(--panel); padding: 12px 6px; font-weight: 700; color: var(--muted); }
     .dir-switch button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+    .voice-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; margin-bottom: 10px;
+      border: 2px solid var(--accent-text); background: var(--accent-soft); color: var(--accent-text);
+      border-radius: 14px; padding: 18px 12px; font-size: 20px; font-weight: 800;
+    }
+    .voice-help { background: var(--panel); border: 1px dashed var(--accent-text); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px; line-height: 1.5; }
+    .voice-help .guest { font-size: 20px; font-weight: 800; margin-bottom: 6px; }
+    .voice-help .staff { font-size: 13px; color: var(--muted); }
     textarea.free {
       width: 100%; min-height: 110px; font-size: 19px; line-height: 1.45; padding: 12px; resize: vertical;
       border: 1px solid var(--line); border-radius: 12px; background: var(--panel); color: var(--ink); font-family: inherit;
@@ -176,6 +184,8 @@
         <button type="button" data-dir="toGuest" aria-pressed="true">スタッフ → お客様</button>
         <button type="button" data-dir="toStaff" aria-pressed="false">お客様 → スタッフ</button>
       </div>
+      <button class="voice-btn" id="voiceBtn" type="button">🎤 声で入力する</button>
+      <div class="voice-help" id="voiceHelp" hidden></div>
       <textarea class="free" id="freeInput" placeholder="日本語で入力（キーボードのマイクで音声入力もできます）"></textarea>
       <div class="row-btns">
         <button class="primary" id="translateBtn" type="button">翻訳する</button>
@@ -237,6 +247,7 @@
     // ---- 表示用ラベル ----
     const LABELS = {
       kickoff: { ja: "キックオフ", en: "Kick-off", zh: "开球时间", tw: "開球時間", ko: "킥오프", th: "เวลาเริ่มแข่ง", vi: "Giờ bắt đầu", id: "Waktu mulai", ar: "موعد انطلاق المباراة" },
+      speak: { ja: "キーボードの 🎤 を押して話してください", en: "Tap 🎤 on the keyboard and speak in your language", zh: "请点键盘上的 🎤，用您的语言说话", tw: "請點鍵盤上的 🎤，用您的語言說話", ko: "키보드의 🎤를 누르고 모국어로 말씀해 주세요", th: "กด 🎤 บนแป้นพิมพ์ แล้วพูดเป็นภาษาของคุณ", vi: "Nhấn 🎤 trên bàn phím và nói bằng ngôn ngữ của bạn", id: "Ketuk 🎤 di keyboard lalu bicara dalam bahasa Anda", ar: "اضغط على 🎤 في لوحة المفاتيح وتحدث بلغتك" },
       pick:  { ja: "言語を選んでください", en: "Please choose your language", zh: "请选择语言", tw: "請選擇語言", ko: "언어를 선택해 주세요", th: "กรุณาเลือกภาษา", vi: "Vui lòng chọn ngôn ngữ", id: "Silakan pilih bahasa", ar: "يرجى اختيار لغتك" },
     };
 
@@ -448,6 +459,8 @@
     function setFreeDisabled(reason) {
       $("translateBtn").disabled = true;
       $("freeInput").disabled = true;
+      $("voiceBtn").disabled = true;
+      $("voiceHelp").hidden = true;
       $("freeMsg").textContent = reason;
     }
 
@@ -460,6 +473,18 @@
         ? "日本語で入力（キーボードのマイクで音声入力もできます）"
         : "Please type here in your language / 请用您的语言输入 / 여기에 입력해 주세요";
       $("freeInput").setAttribute("dir", dir === "toStaff" && lang.rtl ? "rtl" : "auto");
+      $("voiceHelp").hidden = true;
+    });
+
+    // 声で入力: Artifact ではマイクを直接使えないので、キーボードの音声入力を使う
+    $("voiceBtn").addEventListener("click", () => {
+      const help = $("voiceHelp");
+      help.innerHTML = dir === "toGuest"
+        ? `<div class="staff">キーボードの 🎤（マイク）を押して日本語で話してください。話し終わったら「翻訳する」を押します。</div>`
+        : `<div class="guest" dir="${lang.rtl ? "rtl" : "ltr"}">${esc(LABELS.speak[lang.code])}</div>` +
+          `<div class="staff">お客様の言語のキーボードに 🌐 キーで切り替えてから渡してください（端末に事前追加が必要）。話し終わったら「翻訳する」を押します。</div>`;
+      help.hidden = false;
+      $("freeInput").focus();
     });
 
     function renderResult(r) {
