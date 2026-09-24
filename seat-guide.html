@@ -41,7 +41,7 @@
     }
 
     nav.tabs {
-      display: grid; grid-template-columns: repeat(3, 1fr);
+      display: grid; grid-template-columns: repeat(2, 1fr);
       background: var(--panel); border-bottom: 1px solid var(--line);
       position: sticky; top: 52px; z-index: 4;
     }
@@ -57,17 +57,10 @@
     .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 12px; }
     .card h2 { font-size: 15px; margin: 0 0 10px; color: var(--muted); }
 
-    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-    label.field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: var(--muted); }
-    label.field input, label.field select {
-      font-size: 20px; padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink);
-    }
     .arrows { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
     .arrows button {
       font-size: 28px; padding: 10px 0; border: 1px solid var(--line); border-radius: 10px; background: #fff;
     }
-    .arrows button[aria-pressed="true"] { background: var(--accent); color: #fff; border-color: var(--accent); }
-    .arrows button small { display: block; font-size: 11px; }
 
     .primary {
       width: 100%; border: 0; border-radius: 12px; padding: 16px; font-size: 18px; font-weight: 800;
@@ -106,11 +99,6 @@
     .show .big { font-size: clamp(30px, 8vw, 56px); font-weight: 800; line-height: 1.35; word-break: break-word; }
     .show .ja { margin-top: 18px; font-size: 16px; color: var(--muted); }
     .show .arrow-big { font-size: clamp(90px, 30vw, 180px); line-height: 1; margin: 8px 0; color: var(--accent); }
-    .seat-table { margin-top: 12px; border-collapse: collapse; font-size: clamp(22px, 6vw, 40px); }
-    .seat-table th { text-align: right; padding: 6px 14px; color: var(--muted); font-weight: 600; font-size: .6em; }
-    .seat-table td { text-align: left; padding: 6px 14px; font-weight: 800; }
-    [dir="rtl"] .seat-table th { text-align: left; }
-    [dir="rtl"] .seat-table td { text-align: right; }
     .overlay .controls {
       display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
       background: var(--bg); border-top: 1px solid var(--line);
@@ -134,63 +122,17 @@
   </header>
 
   <nav class="tabs" role="tablist">
-    <button role="tab" data-tab="seat" aria-selected="true">座席</button>
-    <button role="tab" data-tab="phrases" aria-selected="false">フレーズ</button>
-    <button role="tab" data-tab="reply" aria-selected="false">お客様の返事</button>
+    <button role="tab" data-tab="phrases" aria-selected="true">伝える</button>
+    <button role="tab" data-tab="reply" aria-selected="false">返事</button>
   </nav>
 
   <main>
-    <!-- 座席 -->
-    <section id="tab-seat">
+    <!-- 伝える（定型フレーズ） -->
+    <section id="tab-phrases">
       <div class="card">
-        <h2>チケットの座席情報</h2>
-        <div class="field-grid">
-          <label class="field">ゲート
-            <input id="fGate" inputmode="text" autocomplete="off" placeholder="例: 3">
-          </label>
-          <label class="field">スタンド
-            <select id="fStand">
-              <option value="">（なし）</option>
-              <option value="main">メイン</option>
-              <option value="back">バック</option>
-              <option value="north">北側</option>
-              <option value="south">南側</option>
-            </select>
-          </label>
-          <label class="field">ブロック
-            <input id="fBlock" inputmode="text" autocomplete="off" placeholder="例: S12">
-          </label>
-          <label class="field">列
-            <input id="fRow" inputmode="text" autocomplete="off" placeholder="例: 15">
-          </label>
-          <label class="field">番号
-            <input id="fSeat" inputmode="numeric" autocomplete="off" placeholder="例: 23">
-          </label>
-        </div>
-      </div>
-      <div class="card">
-        <h2>進む方向（任意）</h2>
-        <div class="arrows" id="arrows">
-          <button type="button" data-arrow="⬆">⬆<small>まっすぐ</small></button>
-          <button type="button" data-arrow="⬅">⬅<small>左</small></button>
-          <button type="button" data-arrow="➡">➡<small>右</small></button>
-          <button type="button" data-arrow="⬇">⬇<small>戻る</small></button>
-          <button type="button" data-arrow="↖">↖<small>左上</small></button>
-          <button type="button" data-arrow="↗">↗<small>右上</small></button>
-          <button type="button" data-arrow="↙">↙<small>左下</small></button>
-          <button type="button" data-arrow="↘">↘<small>右下</small></button>
-        </div>
-      </div>
-      <button class="primary" id="showSeat" type="button">お客様に見せる</button>
-      <div class="card" style="margin-top:12px">
         <h2>キックオフ時刻を見せる</h2>
         <div class="arrows" id="kickoffs" style="grid-template-columns: repeat(2, 1fr);"></div>
       </div>
-      <p class="hint">入力内容はこの端末の中だけで使います（送信しません）。</p>
-    </section>
-
-    <!-- フレーズ -->
-    <section id="tab-phrases" hidden>
       <input class="search" id="search" type="search" placeholder="🔍 フレーズを検索（例: トイレ）">
       <div id="phraseList"></div>
     </section>
@@ -234,24 +176,10 @@
       { code: "ar", name: "العربية", ja: "アラビア語", speech: "ar-SA", rtl: true },
     ];
 
-    // ---- 座席カードの見出し ----
+    // ---- 表示用ラベル ----
     const LABELS = {
-      title: { ja: "お客様のお席", en: "Your seat", zh: "您的座位", tw: "您的座位", ko: "고객님 좌석", th: "ที่นั่งของคุณ", vi: "Chỗ ngồi của bạn", id: "Tempat duduk Anda", ar: "مقعدك" },
-      gate:  { ja: "ゲート", en: "Gate", zh: "入口", tw: "入口", ko: "게이트", th: "ประตู", vi: "Cổng", id: "Gerbang", ar: "البوابة" },
-      stand: { ja: "スタンド", en: "Stand", zh: "看台", tw: "看台", ko: "스탠드", th: "อัฒจันทร์", vi: "Khán đài", id: "Tribun", ar: "المدرج" },
-      block: { ja: "ブロック", en: "Block", zh: "区", tw: "區", ko: "블록", th: "โซน", vi: "Khu", id: "Blok", ar: "القسم" },
-      row:   { ja: "列", en: "Row", zh: "排", tw: "排", ko: "열", th: "แถว", vi: "Hàng", id: "Baris", ar: "الصف" },
-      seat:  { ja: "番号", en: "Seat", zh: "座", tw: "座", ko: "번", th: "ที่นั่ง", vi: "Ghế", id: "Kursi", ar: "المقعد" },
-      way:   { ja: "こちらへお進みください", en: "Please go this way", zh: "请往这边走", tw: "請往這邊走", ko: "이쪽으로 가세요", th: "กรุณาไปทางนี้", vi: "Vui lòng đi hướng này", id: "Silakan lewat sini", ar: "من فضلك اذهب من هنا" },
       kickoff: { ja: "キックオフ", en: "Kick-off", zh: "开球时间", tw: "開球時間", ko: "킥오프", th: "เวลาเริ่มแข่ง", vi: "Giờ bắt đầu", id: "Waktu mulai", ar: "موعد انطلاق المباراة" },
       pick:  { ja: "言語を選んでください", en: "Please choose your language", zh: "请选择语言", tw: "請選擇語言", ko: "언어를 선택해 주세요", th: "กรุณาเลือกภาษา", vi: "Vui lòng chọn ngôn ngữ", id: "Silakan pilih bahasa", ar: "يرجى اختيار لغتك" },
-    };
-
-    const STANDS = {
-      main:  { ja: "メインスタンド", en: "Main Stand", zh: "主看台", tw: "主看台", ko: "메인 스탠드", th: "อัฒจันทร์หลัก", vi: "Khán đài chính", id: "Tribun Utama", ar: "المدرج الرئيسي" },
-      back:  { ja: "バックスタンド", en: "Back Stand", zh: "对面看台", tw: "對面看台", ko: "백 스탠드", th: "อัฒจันทร์ฝั่งตรงข้าม", vi: "Khán đài đối diện", id: "Tribun Seberang", ar: "المدرج المقابل" },
-      north: { ja: "北側スタンド", en: "North Stand", zh: "北看台", tw: "北看台", ko: "북측 스탠드", th: "อัฒจันทร์ทิศเหนือ", vi: "Khán đài Bắc", id: "Tribun Utara", ar: "المدرج الشمالي" },
-      south: { ja: "南側スタンド", en: "South Stand", zh: "南看台", tw: "南看台", ko: "남측 스탠드", th: "อัฒจันทร์ทิศใต้", vi: "Khán đài Nam", id: "Tribun Selatan", ar: "المدرج الجنوبي" },
     };
 
     // ---- 当日の試合時刻（9/25 準々決勝は2試合） ----
@@ -328,7 +256,6 @@
       set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* 保存できなくても動かす */ } },
     };
     let lang = LANGS.find(l => l.code === store.get("seatGuide.lang")) || LANGS[0];
-    let arrow = "";
     let speakText = "";
 
     const $ = id => document.getElementById(id);
@@ -338,7 +265,7 @@
     document.querySelectorAll("nav.tabs button").forEach(btn => {
       btn.addEventListener("click", () => {
         document.querySelectorAll("nav.tabs button").forEach(b => b.setAttribute("aria-selected", String(b === btn)));
-        ["seat", "phrases", "reply"].forEach(t => { $("tab-" + t).hidden = t !== btn.dataset.tab; });
+        ["phrases", "reply"].forEach(t => { $("tab-" + t).hidden = t !== btn.dataset.tab; });
       });
     });
 
@@ -387,41 +314,6 @@
       const u = new SpeechSynthesisUtterance(speakText);
       u.lang = lang.speech;
       speechSynthesis.speak(u);
-    });
-
-    // ---- 座席 ----
-    $("arrows").addEventListener("click", e => {
-      const btn = e.target.closest("button[data-arrow]");
-      if (!btn) return;
-      arrow = arrow === btn.dataset.arrow ? "" : btn.dataset.arrow;
-      document.querySelectorAll("#arrows button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.arrow === arrow)));
-    });
-
-    $("showSeat").addEventListener("click", () => {
-      const c = lang.code;
-      const stand = $("fStand").value;
-      const rows = [
-        ["gate", $("fGate").value.trim()],
-        ["stand", stand ? STANDS[stand][c] : ""],
-        ["block", $("fBlock").value.trim()],
-        ["row", $("fRow").value.trim()],
-        ["seat", $("fSeat").value.trim()],
-      ].filter(([, v]) => v);
-
-      if (!rows.length && !arrow) {
-        alert("座席情報か方向を入力してください。");
-        return;
-      }
-      const table = rows.length
-        ? `<table class="seat-table">${rows.map(([k, v]) => `<tr><th>${esc(LABELS[k][c])}</th><td>${esc(v)}</td></tr>`).join("")}</table>`
-        : "";
-      const jaLine = rows.map(([k, v]) => `${LABELS[k].ja} ${k === "stand" ? STANDS[stand].ja : v}`).join(" / ");
-      const html =
-        `<div class="big">${esc(LABELS.title[c])}</div>` +
-        table +
-        (arrow ? `<div class="arrow-big" dir="ltr">${arrow}</div><div class="big" style="font-size:clamp(22px,6vw,36px)">${esc(LABELS.way[c])}</div>` : "") +
-        `<div class="ja" dir="ltr">${esc(jaLine || LABELS.way.ja)}</div>`;
-      openShow(html, arrow ? LABELS.way[c] : LABELS.title[c], lang.rtl);
     });
 
     // ---- キックオフ時刻 ----
