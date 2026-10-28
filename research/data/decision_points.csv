@@ -1,0 +1,9 @@
+id,scene_ja,when,facts,options,tradeoffs,source_refs
+d1,共立を受けるか,2世紀末,70〜80年の男王の時代のあと倭国乱。気候の揺れが大きい。後漢の権威が崩れる,受ける／拒む,祭祀（鬼道）が正統性の根拠になる。男弟が実務を担う二重体制,notes/01_geopolitics_jomon_yayoi_kofun.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+d2,都をどこに置くか,3世紀初め,纒向が突然現れ外来の土器が多い。北部九州は鉄と外交の窓口,列島の中央（纒向）／玄界灘（伊都・奴）,中央は結節点、九州は鉄と情報に近いが東が離れる,notes/01_geopolitics_jomon_yayoi_kofun.md
+d3,玄界灘の関所をどう押さえるか,3世紀,一大率が伊都国に常駐。港で文書と下賜品を検査,直轄（一大率）／北部九州の王に任せる,直轄は監視コストと反発。任せると鉄と外交を握られる,sources/excerpts/wajinden_hanzhuan_translation_ja.md;sources/texts/fudoki/06_itsubun_kyushu_kurita1927.md
+d4,どの大陸勢力につくか,228〜239,公孫氏が帯方郡を握る。呉も公孫氏と結ぼうとする。238年に魏が公孫氏を滅ぼす,公孫氏／魏／呉,景初2年説なら賭け、3年説ならすばやい乗り換え,sources/excerpts/sanguozhi_related_annals.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+d5,何を貢ぎ何を求めるか,239,生口10人と布 → 親魏倭王の金印、銅鏡百枚。下賜品を国中に見せよとの詔,称号・鏡を求める,鏡は国内の首長に配る威信財になる,sources/excerpts/wajinden_hanzhuan_translation_ja.md
+d6,狗奴国との戦い,245〜247,黄幢（245）、張政の派遣（247）。直前に帯方太守が韓との戦いで戦死,自力で戦う／魏の権威を借りる,魏は半島で手一杯。旗は抑止力だが外の権威への依存,sources/excerpts/wajinden_hanzhuan_translation_ja.md;sources/excerpts/sanguozhi_related_annals.md
+d7,後継者と墓,248頃,径百余歩の冢、殉葬百余人。男王では内乱、13歳の壹与で治まる,男王／宗女,正統性は女性の祭祀王に結びつく,sources/excerpts/wajinden_hanzhuan_translation_ja.md
+d8,気候と食料,2〜3世紀,2世紀は降水の揺れが大きい。中国は201〜350年が寒冷期,蓄え・再分配・移住・開墾,豊かな時期のあとの悪化がいちばん危ない,notes/01_geopolitics_jomon_yayoi_kofun.md

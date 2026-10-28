@@ -1,0 +1,14 @@
+name_in_source,candidate,consensus,note,source_refs
+対馬国,対馬島 上県郡・下県郡,高,ほぼ異論なし,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md
+一大国（一支国）,壱岐島 壱岐郡・石田郡,高,原の辻遺跡,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md
+末盧国,肥前国 松浦郡,高,,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md
+伊都国,筑前国 怡土郡,高,風土記逸文「怡土郡」に五十迹手の伝承,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md;sources/texts/fudoki/06_itsubun_kyushu_kurita1927.md
+奴国,筑前国 那珂郡,高,福岡平野,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md
+不弥国,筑前国 糟屋郡（宇美）,中,宇美の郷名は和名類聚抄の一覧にない,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md
+投馬国,諸説（出雲・吉備・薩摩・日向など）,低,,sources/excerpts/sanguozhi_dongyi_original.md
+邪馬台国（九州説）,筑後国 山門郡／肥後国 菊池郡 山門郷 など,低,,sources/texts/wamyosho/wamyosho_townships.md;notes/01_geopolitics_jomon_yayoi_kofun.md
+邪馬台国（近畿説）,大和国 城上郡（纒向）,中,城下郡に「大和」郷,sources/texts/wamyosho/wamyosho_townships.md;notes/01_geopolitics_jomon_yayoi_kofun.md
+斯馬国,筑前国 志摩郡,低,九州説の一案,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md
+支惟国,肥前国 基肄郡,低,九州説の一案,sources/texts/wamyosho/wamyosho_townships.md;sources/excerpts/sanguozhi_dongyi_original.md
+狗奴国,肥後（菊池）説／東海（濃尾）説,低,官の狗古智卑狗＝菊池彦説,sources/texts/wamyosho/wamyosho_townships.md;notes/01_geopolitics_jomon_yayoi_kofun.md;notes/02_neighbors_and_factcheck.md
+箸墓（大市）,大和国 城上郡 大市郷,高,書紀崇神紀「乃葬於大市」,sources/texts/nihonshoki/nihonshoki_05.md;sources/texts/wamyosho/wamyosho_townships.md

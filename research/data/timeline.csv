@@ -1,0 +1,38 @@
+id,year_start,year_end,year_label,region,event_ja,certainty,note,source_refs
+t001,-1000,-901,前10世紀後半,北部九州,水田稲作の開始（歴博のAMS年代）,C,論争あり。従来説は前5〜4世紀,notes/01_geopolitics_jomon_yayoi_kofun.md
+t002,-108,-108,前108,朝鮮半島,前漢が楽浪郡など4郡を置く,A,以後約400年、中国の郡が半島北部にある,notes/01_geopolitics_jomon_yayoi_kofun.md;notes/02_neighbors_and_factcheck.md
+t003,-52,-52,前52,近畿,池上曽根遺跡の大型建物の柱が伐採される（年輪年代）,A,,notes/01_geopolitics_jomon_yayoi_kofun.md
+t004,57,57,57,北部九州,倭奴国が後漢に遣使し印綬を受ける,A,後漢書。志賀島の金印に対応するとされる,sources/texts/chinese_histories/houhanshu_085_dongyi.md;sources/excerpts/other_sources_key_passages.md
+t005,107,107,107,倭,倭国王帥升らが生口160人を献上,A,後漢書,sources/texts/chinese_histories/houhanshu_085_dongyi.md;sources/excerpts/other_sources_key_passages.md
+t006,135,230,135〜230,近畿,纒向遺跡のモモの種12点が実った年代の範囲,A,14C年代,notes/01_geopolitics_jomon_yayoi_kofun.md
+t007,146,189,146〜189,倭,「桓霊の間、倭国大いに乱る」,A,後漢書。三国志には時期の記述なし,sources/texts/chinese_histories/houhanshu_085_dongyi.md
+t008,172,185,172〜185,中国,後漢・霊帝期に大疫が5回,B,後漢書五行志,notes/01_geopolitics_jomon_yayoi_kofun.md
+t009,173,173,173,新羅,三国史記に「倭女王卑彌乎遣使來聘」,A,本文は確認済み。ただし12世紀の編纂で、紀年の信頼性は低い,sources/texts/korean_histories/samguk_sagi_02_silla.md;sources/excerpts/other_sources_key_passages.md
+t010,184,184,184,中国,黄巾の乱,B,,notes/01_geopolitics_jomon_yayoi_kofun.md
+t011,100,199,2世紀,倭,夏の降水量の数十年周期の変動が大きい時期（年輪酸素同位体比）,C,中塚武らのデータの紹介,notes/01_geopolitics_jomon_yayoi_kofun.md
+t012,201,350,201〜350,中国,寒冷期（Ge et al. 2016の2000年気温復元）,A,,notes/01_geopolitics_jomon_yayoi_kofun.md
+t013,204,220,204頃,朝鮮半島,公孫康（公孫氏）が帯方郡を置く。以後、倭と韓は帯方郡に属する,A,韓伝,sources/excerpts/sanguozhi_dongyi_original.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+t014,220,220,220,中国,後漢が滅び魏が建つ,B,,notes/01_geopolitics_jomon_yayoi_kofun.md
+t015,230,231,230〜231,東シナ海,呉の孫権が衛温・諸葛直に兵1万で夷洲・亶洲を探させる。翌年2人は処刑,A,夷洲は台湾説と琉球説,sources/excerpts/sanguozhi_related_annals.md;notes/02_neighbors_and_factcheck.md
+t016,232,233,232〜233,遼東,公孫淵が呉に称藩するが、233年に呉の使者を斬って魏につく,A,,sources/excerpts/sanguozhi_related_annals.md
+t017,237,238,237〜238,遼東,公孫淵が燕王を名乗る → 238年に司馬懿が襄平を落とし、遼東・帯方・楽浪・玄菟が平定される,A,,sources/excerpts/sanguozhi_related_annals.md
+t018,238,239,景初2年(238)または3年(239),倭,卑弥呼の使い難升米らが帯方郡へ。12月に「親魏倭王」の詔,A,年は論争（書紀・梁書は景初3年）,sources/excerpts/sanguozhi_dongyi_original.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md;sources/excerpts/other_sources_key_passages.md
+t019,240,240,240,倭,帯方太守弓遵が梯儁らを倭に送り、詔書と印綬を届ける,A,底本は「正治元年」と誤る,sources/excerpts/sanguozhi_dongyi_original.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+t020,243,243,243,倭,5月に洛陽で皆既日食。12月に倭国女王「俾弥呼」が遣使（本紀）,A,倭人伝の「其四年」と対応,sources/excerpts/sanguozhi_related_annals.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+t021,244,245,244〜245,朝鮮半島,魏の毌丘倹が高句麗を攻め、都の丸都を破壊,B,,notes/02_neighbors_and_factcheck.md
+t022,245,245,245,倭,詔で難升米に黄幢を与える,A,,sources/excerpts/sanguozhi_dongyi_original.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+t023,246,246,246頃,朝鮮半島,韓の諸国が帯方郡の崎離営を攻め、帯方太守弓遵が戦死。本紀では韓の那奚など数十国が降る,A,,sources/excerpts/sanguozhi_dongyi_original.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md;sources/excerpts/sanguozhi_related_annals.md
+t024,247,247,247,倭,新太守王頎が着任。卑弥呼が狗奴国との交戦を報告 → 張政を派遣し黄幢と檄,A,,sources/excerpts/sanguozhi_dongyi_original.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+t025,240,260,240〜260,近畿,箸墓古墳の築造直後の年代（歴博の14C）,C,異論あり（230年前後と300年前後の2つの山）,notes/01_geopolitics_jomon_yayoi_kofun.md;notes/02_neighbors_and_factcheck.md
+t026,248,248,248頃,倭,卑弥呼が死ぬ。径百余歩の冢、殉葬百余人。男王では治まらず、13歳の壹与を立てる,A,死の年は推定。倭人伝に年の明記なし,sources/excerpts/sanguozhi_dongyi_original.md;sources/excerpts/wajinden_hanzhuan_translation_ja.md
+t027,266,266,266,倭,倭人が西晋に方物を献上（晋書武帝紀）。書紀神功紀66年も晋起居注を引く,A,,sources/texts/chinese_histories/jinshu_003_wudi.md;sources/excerpts/other_sources_key_passages.md
+t028,280,297,280〜297,中国,『三国志』（倭人伝を含む）が成立,B,,notes/01_geopolitics_jomon_yayoi_kofun.md
+t029,280,280,280,中国,"西晋の戸籍：約1,616万人（157年は約5,648万人）",B,280年の数字は過少の可能性,notes/02_neighbors_and_factcheck.md
+t030,314,314,314,朝鮮半島,高句麗が楽浪・帯方郡を滅ぼす,B,,notes/01_geopolitics_jomon_yayoi_kofun.md;notes/02_neighbors_and_factcheck.md
+t031,391,391,391,朝鮮半島,広開土王碑「倭以辛卯年來渡海…」,C,碑文の解釈に論争。原文は未取得,sources/excerpts/other_sources_key_passages.md
+t032,421,478,421〜478,倭,倭の五王が南朝宋に約10回遣使。478年に倭王武の上表,A,,sources/texts/chinese_histories/songshu_097_yiman.md;sources/excerpts/other_sources_key_passages.md
+t033,527,528,527〜528,北部九州,筑紫君磐井の乱。墓は岩戸山古墳とされる,A,風土記逸文の記述が遺構と一致,sources/texts/fudoki/06_itsubun_kyushu_kurita1927.md
+t034,712,712,712,日本,『古事記』成立,A,,sources/texts/kojiki/kojiki_original.md
+t035,713,713,713,日本,風土記編纂の命令,B,,sources/texts/fudoki/00_index.md
+t036,720,720,720,日本,『日本書紀』成立,A,,sources/texts/nihonshoki/nihonshoki_09.md
+t037,732,732,732,北部九州,西海道節度使・藤原宇合のもとで九州の風土記が書き直される（逸文「宇合」）,B,,sources/texts/fudoki/06_itsubun_kyushu_kurita1927.md
