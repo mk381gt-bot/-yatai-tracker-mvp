@@ -1,0 +1,542 @@
+<title>遊具設置の通訳</title>
+<style>
+  :root {
+    --bg: #eef0ec;
+    --panel: #ffffff;
+    --ink: #1a1f1c;
+    --muted: #5d665f;
+    --line: #d5dad3;
+    --ja: #24408e;
+    --ja-soft: #e6ebf7;
+    --zh: #0d6b5f;
+    --zh-soft: #e1f1ed;
+    --on-accent: #ffffff;
+    --danger: #c3261d;
+    --danger-soft: #fdecea;
+    --warn-ink: #7a4b00;
+    --warn-soft: #fff4d6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #121614; --panel: #1b211e; --ink: #edf1ee; --muted: #9aa59d; --line: #2e3732;
+      --ja: #7f9cf0; --ja-soft: #1e2742; --zh: #4fc2ae; --zh-soft: #15302b;
+      --on-accent: #0d110f; --danger: #ff6f61; --danger-soft: #3a1714; --warn-ink: #ffd27a; --warn-soft: #3a2e12;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #121614; --panel: #1b211e; --ink: #edf1ee; --muted: #9aa59d; --line: #2e3732;
+    --ja: #7f9cf0; --ja-soft: #1e2742; --zh: #4fc2ae; --zh-soft: #15302b;
+    --on-accent: #0d110f; --danger: #ff6f61; --danger-soft: #3a1714; --warn-ink: #ffd27a; --warn-soft: #3a2e12;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: system-ui, -apple-system, "Hiragino Sans", "PingFang SC", "Noto Sans JP", "Noto Sans SC", sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: default; }
+  button:focus-visible, textarea:focus-visible, input:focus-visible { outline: 3px solid var(--ja); outline-offset: 2px; }
+
+  .app { display: flex; flex-direction: column; height: 100%; max-width: 760px; margin: 0 auto; }
+
+  header {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    background: var(--panel); border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 15px; margin: 0; flex: 1; letter-spacing: .02em; }
+  header h1 small { display: block; font-size: 11px; font-weight: 500; color: var(--muted); }
+  .hbtn { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 8px 10px; font-size: 13px; font-weight: 700; }
+
+  .banner { margin: 10px 16px 0; padding: 10px 12px; border-radius: 10px; background: var(--warn-soft); color: var(--warn-ink); font-size: 13px; line-height: 1.5; }
+
+  .log { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .empty { margin: auto 0; text-align: center; color: var(--muted); font-size: 14px; line-height: 1.7; }
+  .empty b { color: var(--ink); }
+
+  .msg { max-width: 88%; border-radius: 14px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); }
+  .msg.ja { align-self: flex-end; border-color: color-mix(in srgb, var(--ja) 35%, var(--line)); }
+  .msg.zh { align-self: flex-start; border-color: color-mix(in srgb, var(--zh) 35%, var(--line)); }
+  .msg .who { font-size: 11px; font-weight: 800; letter-spacing: .06em; }
+  .msg.ja .who { color: var(--ja); }
+  .msg.zh .who { color: var(--zh); }
+  .msg .src { font-size: 14px; color: var(--muted); margin-top: 2px; line-height: 1.45; white-space: pre-wrap; }
+  .msg .tr { font-size: 20px; font-weight: 700; line-height: 1.45; margin-top: 4px; white-space: pre-wrap; word-break: break-word; }
+  .msg .back { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.45; }
+  .msg .check { font-size: 13px; margin-top: 6px; padding: 6px 8px; border-radius: 8px; background: var(--warn-soft); color: var(--warn-ink); line-height: 1.45; }
+  .msg.danger { border-color: var(--danger); background: var(--danger-soft); }
+  .msg .acts { display: flex; gap: 6px; margin-top: 8px; }
+  .msg .acts button { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 700; }
+  .msg.pending .tr { color: var(--muted); font-weight: 500; font-size: 15px; }
+
+  .dock { background: var(--panel); border-top: 1px solid var(--line); padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; }
+  .speaker { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .speaker button { border: 0; background: var(--panel); padding: 11px 6px; font-weight: 800; font-size: 15px; color: var(--muted); }
+  .speaker button[data-sp="ja"][aria-pressed="true"] { background: var(--ja); color: var(--on-accent); }
+  .speaker button[data-sp="zh"][aria-pressed="true"] { background: var(--zh); color: var(--on-accent); }
+
+  .quick { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; scrollbar-width: none; }
+  .quick::-webkit-scrollbar { display: none; }
+  .quick button { flex: none; border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 7px 12px; font-size: 14px; font-weight: 700; white-space: nowrap; }
+  .quick button.stop { background: var(--danger); border-color: var(--danger); color: #fff; }
+
+  textarea#input {
+    width: 100%; min-height: 84px; max-height: 34vh; resize: vertical; font: inherit; font-size: 18px; line-height: 1.45;
+    padding: 10px 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  }
+  .row { display: grid; grid-template-columns: auto 1fr; gap: 8px; }
+  .photo { border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 0 14px; font-weight: 700; display: flex; align-items: center; cursor: pointer; }
+  .send { border: 0; border-radius: 12px; padding: 14px; font-size: 17px; font-weight: 800; color: var(--on-accent); background: var(--ja); }
+  .send.zh { background: var(--zh); }
+  .status { font-size: 13px; min-height: 1em; color: var(--danger); }
+
+  /* 向かい合わせ表示 */
+  .face { position: fixed; inset: 0; z-index: 30; background: var(--panel); display: grid; grid-template-rows: 1fr auto 1fr; }
+  .face .half { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px 20px; overflow: auto; gap: 10px; }
+  .face .top { transform: rotate(180deg); background: var(--zh-soft); padding-bottom: calc(20px + env(safe-area-inset-top, 0px)); }
+  .face .bottom { background: var(--ja-soft); padding-bottom: calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .face .big { font-size: clamp(22px, 6.2vw, 42px); font-weight: 800; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+  .face .lab { font-size: 12px; font-weight: 800; letter-spacing: .08em; color: var(--muted); }
+  .face .mid { display: flex; gap: 8px; justify-content: center; padding: 8px 12px; background: var(--panel); border-block: 1px solid var(--line); }
+  .face .mid button, .face .half button { border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 8px 14px; font-weight: 700; font-size: 14px; }
+  .face.danger .top, .face.danger .bottom { background: var(--danger-soft); }
+  .face.danger .big { color: var(--danger); }
+
+  /* 用語集・メニュー */
+  .sheet { position: fixed; inset: 0; z-index: 25; background: var(--bg); display: flex; flex-direction: column; }
+  .sheet header { padding-top: calc(10px + env(safe-area-inset-top, 0px)); }
+  .sheet .body { flex: 1; overflow-y: auto; padding: 12px 16px 24px; display: flex; flex-direction: column; gap: 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .card h2 { font-size: 13px; margin: 0 0 8px; color: var(--muted); letter-spacing: .04em; }
+  .add { display: grid; grid-template-columns: 1fr 1fr auto; gap: 6px; }
+  .add input, .search { font: inherit; font-size: 16px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); min-width: 0; width: 100%; }
+  .add button { border: 0; border-radius: 10px; padding: 0 14px; font-weight: 800; background: var(--ja); color: var(--on-accent); }
+  table.terms { width: 100%; border-collapse: collapse; font-size: 15px; }
+  table.terms td { padding: 7px 4px; border-top: 1px solid var(--line); vertical-align: top; }
+  table.terms td:nth-child(2) { color: var(--zh); font-weight: 700; }
+  table.terms td:last-child { width: 1%; white-space: nowrap; text-align: right; }
+  table.terms button { border: 0; background: none; color: var(--danger); font-size: 13px; font-weight: 700; padding: 2px 4px; }
+  .tag { font-size: 10px; font-weight: 800; color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 1px 5px; margin-left: 4px; vertical-align: 2px; }
+  .menu-btn { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 12px; padding: 14px; font-weight: 700; font-size: 15px; }
+  .menu-btn small { display: block; font-weight: 500; font-size: 12px; color: var(--muted); margin-top: 3px; }
+  .menu-btn.danger { color: var(--danger); }
+  textarea.copybox { width: 100%; min-height: 50vh; font: inherit; font-size: 13px; padding: 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); }
+  .hint { font-size: 13px; color: var(--muted); line-height: 1.6; margin: 0; }
+
+  @media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <header>
+    <h1>遊具設置の通訳<small>日本語 ⇄ 中文（简体）</small></h1>
+    <button class="hbtn" id="termsBtn" type="button">用語集</button>
+    <button class="hbtn" id="menuBtn" type="button">記録</button>
+  </header>
+  <div class="banner" id="banner" hidden></div>
+
+  <div class="log" id="log" aria-live="polite"></div>
+
+  <div class="dock">
+    <div class="speaker" id="speaker">
+      <button type="button" data-sp="ja" aria-pressed="true">日本語で話す</button>
+      <button type="button" data-sp="zh" aria-pressed="false">说中文</button>
+    </div>
+    <div class="quick" id="quick"></div>
+    <textarea id="input" placeholder=""></textarea>
+    <div class="row">
+      <label class="photo" id="photoLabel" hidden>📷<input type="file" id="photo" accept="image/*" capture="environment" hidden></label>
+      <button class="send" id="send" type="button"></button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<!-- 向かい合わせ表示 -->
+<div class="face" id="face" hidden>
+  <div class="half top">
+    <div class="lab">中文</div>
+    <div class="big" id="faceZh"></div>
+    <button type="button" id="speakZh">🔊 朗读</button>
+  </div>
+  <div class="mid">
+    <button type="button" id="faceClose">✕ 閉じる / 关闭</button>
+  </div>
+  <div class="half bottom">
+    <div class="lab">日本語</div>
+    <div class="big" id="faceJa"></div>
+    <button type="button" id="speakJa">🔊 読み上げ</button>
+  </div>
+</div>
+
+<!-- 用語集 -->
+<div class="sheet" id="termsSheet" hidden>
+  <header>
+    <h1>用語集<small>ここにある訳語を必ず使って翻訳します</small></h1>
+    <button class="hbtn" id="termsClose" type="button">閉じる</button>
+  </header>
+  <div class="body">
+    <div class="card">
+      <h2>言葉を追加</h2>
+      <div class="add">
+        <input id="addJa" placeholder="日本語（例: 主柱）" autocomplete="off">
+        <input id="addZh" placeholder="中文（例: 主立柱）" autocomplete="off">
+        <button type="button" id="addBtn">追加</button>
+      </div>
+      <p class="hint" style="margin-top:8px">現場で決めた呼び方（部品番号や「あの黒いボルト」など）も登録しておくと、訳がぶれません。</p>
+    </div>
+    <input class="search" id="termSearch" type="search" placeholder="用語を探す / 搜索">
+    <div class="card"><table class="terms" id="termTable"></table></div>
+  </div>
+</div>
+
+<!-- 記録メニュー -->
+<div class="sheet" id="menuSheet" hidden>
+  <header>
+    <h1>会話の記録<small>この端末の中だけに保存しています</small></h1>
+    <button class="hbtn" id="menuClose" type="button">閉じる</button>
+  </header>
+  <div class="body">
+    <button class="menu-btn" id="copyLog" type="button">記録をコピーする<small>日報やLINEに貼り付けられる形でコピーします</small></button>
+    <textarea class="copybox" id="copyBox" hidden readonly></textarea>
+    <button class="menu-btn danger" id="clearLog" type="button">記録をすべて消す<small>新しい現場・新しい日に始めるとき</small></button>
+    <p class="hint">翻訳は Claude が行います（開いている人の Claude 利用枠を使います）。トルク値・寸法・本数など大事な数字は、訳の下の「戻し訳」と相手の返事で必ず確かめてください。</p>
+  </div>
+</div>
+
+<script>
+  // ---- 用語集（イベント・お祭り遊具の組み立て・設置） ----
+  const PRESET_TERMS = [
+    ["エアー遊具", "充气游乐设备"], ["送風機（ブロワー）", "鼓风机"], ["アンカー（杭）", "地钉"], ["土のう・ウェイト", "沙袋／配重"],
+    ["ラチェットベルト", "棘轮紧固带"], ["ボルト", "螺栓"], ["ナット", "螺母"], ["ワッシャー", "垫圈"], ["ピン", "销子"],
+    ["トルク", "扭矩"], ["トルクレンチ", "扭力扳手"], ["仮締め", "预紧"], ["本締め", "最终拧紧"], ["水平", "水平"], ["水平器", "水平仪"],
+    ["アウトリガー", "支腿"], ["ジャッキ", "千斤顶"], ["敷板", "垫板"], ["発電機", "发电机"], ["電源ケーブル", "电源线"],
+    ["アース（接地）", "接地"], ["分電盤", "配电箱"], ["制御盤", "控制柜"], ["非常停止ボタン", "急停按钮"], ["安全バー", "安全压杠"],
+    ["シートベルト", "安全带"], ["試運転", "试运行"], ["点検", "检查"], ["部品", "零件"], ["交換", "更换"], ["溶接部", "焊接处"],
+    ["ひび割れ", "裂纹"], ["摩耗", "磨损"], ["油圧", "液压"], ["モーター", "电机"], ["減速機", "减速机"], ["ベアリング", "轴承"],
+    ["チェーン", "链条"], ["ブレーキ", "制动器"], ["センサー", "传感器"], ["クレーン", "吊车"], ["フォークリフト", "叉车"],
+    ["防護ネット", "防护网"], ["マット", "垫子"], ["風速", "风速"], ["定員", "额定人数"], ["身長制限", "身高限制"],
+  ];
+
+  // ---- ワンタップの返事（事前に訳したもの。通信なしで使える） ----
+  const QUICK = [
+    { ja: "危ない！止めて！", zh: "危险！停下！", danger: true },
+    { ja: "了解です", zh: "明白了" },
+    { ja: "もう一度お願いします", zh: "请再说一遍" },
+    { ja: "ゆっくり話してください", zh: "请说慢一点" },
+    { ja: "ちょっと待ってください", zh: "请稍等" },
+    { ja: "大丈夫です", zh: "没问题" },
+    { ja: "わかりません", zh: "我不明白" },
+    { ja: "ここですか？", zh: "是这里吗？" },
+    { ja: "これでいいですか？", zh: "这样可以吗？" },
+    { ja: "見せてください", zh: "请给我看一下" },
+    { ja: "写真を撮ってもいいですか？", zh: "可以拍照吗？" },
+    { ja: "休憩しましょう", zh: "我们休息一下吧" },
+    { ja: "ありがとうございます", zh: "谢谢" },
+  ];
+
+  const UI = {
+    ja: { ph: "日本語で入力（キーボードの🎤で音声入力もできます）", send: "翻訳する", busy: "翻訳中…", photoBusy: "写真を読んでいます…", empty: "文を入力してください。" },
+    zh: { ph: "请输入中文（也可以用键盘上的🎤语音输入）", send: "翻译", busy: "翻译中…", photoBusy: "正在识别照片…", empty: "请输入内容。" },
+  };
+
+  const ERR = {
+    not_granted: "Claude の利用が許可されませんでした。下のワンタップ返事だけ使えます。",
+    sampling_disabled: "このアカウントでは Claude を使えません。",
+    rate_limited: "混み合っているか利用上限です。少し待ってからもう一度送ってください。",
+    session_expired: "ログインが切れました。claude.ai にログインし直してください。",
+    refused: "この文は翻訳できませんでした。言い方を変えてください。",
+    image_rejected: "この写真は読めませんでした。明るく、近づいて撮り直してください。",
+    invalid_json: "うまく翻訳できませんでした。もう一度送ってください。",
+  };
+  const HIDE = ["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"];
+  const errText = e => ERR[e && e.code] || "通信に失敗しました。電波の良い場所でもう一度送ってください。";
+
+  // ---- 保存（この端末だけ） ----
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* 保存できなくても動かす */ } },
+  };
+  let log = store.get("rideTr.log", []);
+  let customTerms = store.get("rideTr.terms", []);
+  let speaker = "ja";
+  let sample = null;
+  let busy = false;
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const now = () => new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" });
+  const saveLog = () => { if (log.length > 300) log = log.slice(-300); store.set("rideTr.log", log.filter(m => !m.pending)); };
+
+  // ---- 話す人 ----
+  function setSpeaker(sp) {
+    speaker = sp;
+    document.querySelectorAll("#speaker button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.sp === sp)));
+    $("input").placeholder = UI[sp].ph;
+    $("input").lang = sp === "ja" ? "ja" : "zh-CN";
+    $("send").textContent = UI[sp].send;
+    $("send").classList.toggle("zh", sp === "zh");
+    renderQuick();
+  }
+  $("speaker").addEventListener("click", e => {
+    const b = e.target.closest("button[data-sp]");
+    if (b) setSpeaker(b.dataset.sp);
+  });
+
+  // ---- ワンタップ返事 ----
+  function renderQuick() {
+    $("quick").innerHTML = QUICK.map((q, i) =>
+      `<button type="button" data-q="${i}" class="${q.danger ? "stop" : ""}">${esc(q[speaker])}</button>`).join("");
+  }
+  $("quick").addEventListener("click", e => {
+    const b = e.target.closest("button[data-q]");
+    if (!b) return;
+    const q = QUICK[Number(b.dataset.q)];
+    const other = speaker === "ja" ? "zh" : "ja";
+    const item = { id: Date.now(), t: now(), from: speaker, src: q[speaker], tr: q[other], back: "", check: "", kind: "quick", danger: !!q.danger };
+    log.push(item); saveLog(); renderLog();
+    showFace(item);
+  });
+
+  // ---- 会話ログ ----
+  function zhOf(m) { return m.from === "zh" ? m.src : m.tr; }
+  function jaOf(m) { return m.from === "ja" ? m.src : m.tr; }
+
+  function renderLog() {
+    if (!log.length) {
+      $("log").innerHTML = `<div class="empty"><b>話す人を選んで、打って「翻訳する」</b><br>打ち終わったらスマホを相手に渡すか、<br>「見せる」で上下に分けて机に置きます。<br><br>选择说话的人，输入后点「翻译」。</div>`;
+      return;
+    }
+    $("log").innerHTML = log.map((m, i) => {
+      const who = m.kind === "photo"
+        ? (m.from === "ja" ? "写真 → 日本語" : "照片 → 中文")
+        : (m.from === "ja" ? "日本語 → 中文" : "中文 → 日本語");
+      const pending = m.pending ? " pending" : "";
+      return `<div class="msg ${m.from}${m.danger ? " danger" : ""}${pending}">
+        <div class="who">${esc(who)} · ${esc(m.t)}</div>
+        ${m.src ? `<div class="src" lang="${m.from === "ja" ? "ja" : "zh-CN"}">${esc(m.src)}</div>` : ""}
+        <div class="tr" lang="${m.kind === "photo" ? (m.from === "ja" ? "ja" : "zh-CN") : (m.from === "ja" ? "zh-CN" : "ja")}">${esc(m.pending ? UI[m.from].busy : m.tr)}</div>
+        ${m.back ? `<div class="back">↩ 戻し訳：${esc(m.back)}</div>` : ""}
+        ${m.check ? `<div class="check">⚠ ${esc(m.check)}</div>` : ""}
+        ${m.pending || m.kind === "photo" ? "" : `<div class="acts"><button type="button" data-show="${i}">見せる / 显示</button></div>`}
+      </div>`;
+    }).join("");
+    $("log").scrollTop = $("log").scrollHeight;
+  }
+  $("log").addEventListener("click", e => {
+    const b = e.target.closest("button[data-show]");
+    if (b) showFace(log[Number(b.dataset.show)]);
+  });
+
+  // ---- 向かい合わせ表示 ----
+  let faceItem = null;
+  function showFace(m) {
+    faceItem = m;
+    $("faceZh").textContent = zhOf(m);
+    $("faceJa").textContent = jaOf(m);
+    $("face").classList.toggle("danger", !!m.danger);
+    $("face").hidden = false;
+  }
+  $("faceClose").addEventListener("click", () => { if ("speechSynthesis" in window) speechSynthesis.cancel(); $("face").hidden = true; });
+  function speak(text, lang) {
+    if (!("speechSynthesis" in window) || !text) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang;
+    speechSynthesis.speak(u);
+  }
+  $("speakZh").addEventListener("click", () => faceItem && speak(zhOf(faceItem), "zh-CN"));
+  $("speakJa").addEventListener("click", () => faceItem && speak(jaOf(faceItem), "ja-JP"));
+
+  // ---- 翻訳 ----
+  function glossaryText() {
+    return [...customTerms.map(t => [t.ja, t.zh]), ...PRESET_TERMS].map(([j, z]) => `${j} = ${z}`).join("\n");
+  }
+  function recentContext() {
+    return log.filter(m => !m.pending && m.kind !== "photo").slice(-6)
+      .map(m => `JA: ${jaOf(m)}\nZH: ${zhOf(m)}`).join("\n") || "(none)";
+  }
+  const ROLE = "You are an on-site interpreter between a Japanese staff member and a technician from mainland China (Simplified Chinese). They are assembling and installing amusement equipment for events and festivals (inflatables, temporary rides).";
+
+  function setBusy(b) {
+    busy = b;
+    $("send").disabled = b || !sample;
+    $("send").textContent = b ? UI[speaker].busy : UI[speaker].send;
+  }
+
+  $("send").addEventListener("click", async () => {
+    const src = $("input").value.trim();
+    if (!src) { $("status").textContent = UI[speaker].empty; return; }
+    if (!sample || busy) return;
+    const from = speaker;
+    const srcName = from === "ja" ? "Japanese" : "Simplified Chinese";
+    const dstName = from === "ja" ? "Simplified Chinese" : "Japanese";
+    const prompt = `${ROLE}
+Translate the ${srcName} message into ${dstName}.
+Rules:
+- Use the glossary terms exactly when they apply.
+- Keep every number, unit, quantity, direction (left/right/up/down) and part name exactly.
+- Short, natural spoken language a worker on site would use.
+- Then translate your translation back into ${srcName} as "back", so the speaker can check the meaning.
+- "check": if the message contains safety-critical numbers or instructions, or is ambiguous (unclear part, unclear which side), write ONE short caution in ${srcName}. Otherwise "".
+
+Glossary (Japanese = Chinese):
+${glossaryText()}
+
+Recent conversation (context only, do not translate):
+${recentContext()}
+
+Reply with only JSON: {"translation": "", "back": "", "check": ""}
+
+Message:
+${src}`;
+
+    const item = { id: Date.now(), t: now(), from, src, tr: "", back: "", check: "", kind: "text", pending: true };
+    log.push(item); renderLog();
+    $("input").value = ""; $("status").textContent = "";
+    setBusy(true);
+    try {
+      const out = await sample.json(prompt, { modelTier: "quick", cache: false });
+      const tr = String(out && out.translation || "").trim();
+      if (!tr) throw { code: "invalid_json" };
+      Object.assign(item, { tr, back: String(out.back || "").trim(), check: String(out.check || "").trim(), pending: false });
+      saveLog();
+    } catch (e) {
+      log = log.filter(m => m !== item);
+      $("input").value = src;
+      $("status").textContent = errText(e);
+      if (e && HIDE.includes(e.code)) disableAI(errText(e));
+    } finally {
+      setBusy(false);
+      renderLog();
+    }
+  });
+
+  // ---- 写真を訳す（マニュアル・ラベル・制御盤の表示など） ----
+  $("photo").addEventListener("change", async e => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!file || !sample || busy) return;
+    const from = speaker; // 読みたい人の言語に訳す
+    const dstName = from === "ja" ? "Japanese" : "Simplified Chinese";
+    const item = { id: Date.now(), t: now(), from, src: "", tr: "", back: "", check: "", kind: "photo", pending: true };
+    log.push(item); renderLog();
+    setBusy(true);
+    $("send").textContent = UI[from].photoBusy;
+    try {
+      const out = await sample.json(`${ROLE}
+The photo was taken on site: it may be a manual page, a warning label, a part, or a control panel display.
+1) "translation": transcribe the important text in the photo and translate it into ${dstName} (keep numbers, units and part numbers exactly).
+2) "explain": in ${dstName}, explain in 1-3 short sentences what it means for the work. If there is a safety warning, say so first.
+If there is no text, describe the part or situation in ${dstName}.
+
+Glossary (Japanese = Chinese):
+${glossaryText()}
+
+Reply with only JSON: {"translation": "", "explain": ""}`, { images: file, modelTier: "default" });
+      const tr = [out.translation, out.explain].filter(Boolean).map(s => String(s).trim()).join("\n\n");
+      if (!tr) throw { code: "invalid_json" };
+      Object.assign(item, { tr, pending: false });
+      saveLog();
+    } catch (err) {
+      log = log.filter(m => m !== item);
+      $("status").textContent = errText(err);
+      if (err && (HIDE.includes(err.code) || err.code === "images_unavailable")) $("photoLabel").hidden = true;
+    } finally {
+      setBusy(false);
+      renderLog();
+    }
+  });
+
+  function disableAI(reason) {
+    sample = null;
+    $("banner").textContent = reason;
+    $("banner").hidden = false;
+    $("send").disabled = true;
+    $("photoLabel").hidden = true;
+  }
+
+  // ---- 用語集 ----
+  function renderTerms() {
+    const q = $("termSearch").value.trim();
+    const rows = [
+      ...customTerms.map((t, i) => ({ ja: t.ja, zh: t.zh, i })),
+      ...PRESET_TERMS.map(([ja, zh]) => ({ ja, zh, i: -1 })),
+    ].filter(r => !q || r.ja.includes(q) || r.zh.includes(q));
+    $("termTable").innerHTML = rows.map(r => `<tr><td>${esc(r.ja)}${r.i >= 0 ? '<span class="tag">追加</span>' : ""}</td><td lang="zh-CN">${esc(r.zh)}</td><td>${r.i >= 0 ? `<button type="button" data-del="${r.i}">削除</button>` : ""}</td></tr>`).join("")
+      || `<tr><td colspan="3">見つかりません</td></tr>`;
+  }
+  $("termsBtn").addEventListener("click", () => { renderTerms(); $("termsSheet").hidden = false; });
+  $("termsClose").addEventListener("click", () => { $("termsSheet").hidden = true; });
+  $("termSearch").addEventListener("input", renderTerms);
+  $("addBtn").addEventListener("click", () => {
+    const ja = $("addJa").value.trim(), zh = $("addZh").value.trim();
+    if (!ja || !zh) return;
+    customTerms.unshift({ ja, zh });
+    store.set("rideTr.terms", customTerms);
+    $("addJa").value = ""; $("addZh").value = "";
+    renderTerms();
+  });
+  $("termTable").addEventListener("click", e => {
+    const b = e.target.closest("button[data-del]");
+    if (!b) return;
+    customTerms.splice(Number(b.dataset.del), 1);
+    store.set("rideTr.terms", customTerms);
+    renderTerms();
+  });
+
+  // ---- 記録 ----
+  $("menuBtn").addEventListener("click", () => { $("copyBox").hidden = true; resetClear(); $("menuSheet").hidden = false; });
+  $("menuClose").addEventListener("click", () => { $("menuSheet").hidden = true; });
+  function logText() {
+    return log.filter(m => !m.pending).map(m => {
+      const head = m.kind === "photo" ? `[${m.t}] 写真` : `[${m.t}] ${m.from === "ja" ? "日→中" : "中→日"}`;
+      return m.kind === "photo" ? `${head}\n${m.tr}` : `${head}\n${m.src}\n→ ${m.tr}`;
+    }).join("\n\n");
+  }
+  $("copyLog").addEventListener("click", () => {
+    const text = logText() || "（記録はまだありません）";
+    const box = $("copyBox");
+    const fallback = () => { box.value = text; box.hidden = false; box.focus(); box.select(); };
+    try {
+      navigator.clipboard.writeText(text).then(() => {
+        $("copyLog").firstChild.textContent = "コピーしました";
+      }, fallback);
+    } catch (e) { fallback(); }
+  });
+  let clearArmed = false, clearTimer = null;
+  function resetClear() {
+    clearArmed = false;
+    $("clearLog").firstChild.textContent = "記録をすべて消す";
+    $("copyLog").firstChild.textContent = "記録をコピーする";
+  }
+  $("clearLog").addEventListener("click", () => {
+    if (!clearArmed) {
+      clearArmed = true;
+      $("clearLog").firstChild.textContent = "もう一度押すと消えます";
+      clearTimeout(clearTimer);
+      clearTimer = setTimeout(resetClear, 4000);
+      return;
+    }
+    log = []; saveLog(); renderLog(); resetClear();
+    $("menuSheet").hidden = true;
+  });
+
+  // ---- 起動 ----
+  setSpeaker("ja");
+  renderLog();
+  $("send").disabled = true;
+  (async () => {
+    sample = window.claude ? await window.claude.use("sample") : null;
+    if (!sample) {
+      disableAI("この画面では翻訳が使えません。claude.ai で開いてください（ワンタップ返事は使えます）。");
+      return;
+    }
+    $("send").disabled = false;
+    const limits = await sample.limits().catch(() => null);
+    $("photoLabel").hidden = !(limits && limits.images);
+  })();
+</script>
