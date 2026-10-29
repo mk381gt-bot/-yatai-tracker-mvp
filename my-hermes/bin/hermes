@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Hermes を起動する。どのフォルダから呼んでも、Hermes のホームで Claude Code を開き、
+# 呼び出し元フォルダも触れるようにする。引数はそのまま claude に渡す（例: hermes -c で続きから）。
+set -euo pipefail
+
+HERMES_HOME="${HERMES_HOME:-$HOME/hermes}"
+export HERMES_CALLER_DIR="$PWD"
+
+if [ ! -d "$HERMES_HOME" ]; then
+  echo "Hermes のホーム $HERMES_HOME がありません。先に install.sh を実行してください。" >&2
+  exit 1
+fi
+
+cd "$HERMES_HOME"
+
+# ホームやホームディレクトリ直下から呼んだときは、余計なフォルダを追加しない
+if [ "$HERMES_CALLER_DIR" != "$HERMES_HOME" ] && [ "$HERMES_CALLER_DIR" != "$HOME" ]; then
+  exec claude --add-dir "$HERMES_CALLER_DIR" "$@"
+else
+  exec claude "$@"
+fi
