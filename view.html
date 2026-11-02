@@ -242,6 +242,145 @@
       line-height: 1.5;
     }
 
+    .weather-card {
+      display: none;
+      padding: 12px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+      box-shadow: 0 1px 2px rgba(31, 41, 51, 0.08);
+    }
+
+    .weather-card.is-visible {
+      display: block;
+    }
+
+    .weather-summary {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 800;
+      line-height: 1.5;
+    }
+
+    .weather-summary.is-rainy {
+      color: #2b4c8c;
+    }
+
+    .weather-hours {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 4px;
+      margin: 8px 0 0;
+      padding: 0;
+      list-style: none;
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .weather-hours li {
+      padding: 6px 2px;
+      border-radius: 6px;
+      background: #fff;
+      border: 1px solid #eadfca;
+    }
+
+    .weather-hours strong {
+      display: block;
+      font-size: 15px;
+    }
+
+    .weather-source {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .map-tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .poi-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 40px;
+      padding: 4px 12px 4px 6px;
+      border: 2px solid var(--line);
+      border-radius: 999px;
+      background: #fff;
+      color: var(--ink);
+      font: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .poi-chip[aria-pressed="false"] {
+      opacity: 0.55;
+      border-style: dashed;
+    }
+
+    .poi-chip[aria-pressed="false"] .poi-dot {
+      filter: grayscale(1);
+    }
+
+    .poi-dot,
+    .poi-icon {
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      color: #fff;
+      font-weight: 900;
+    }
+
+    .poi-dot {
+      width: 26px;
+      height: 26px;
+      font-size: 11px;
+    }
+
+    .poi-icon {
+      width: 28px;
+      height: 28px;
+      border: 2px solid #fff;
+      font-size: 12px;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    }
+
+    .follow-button {
+      display: none;
+      margin-left: auto;
+      min-height: 40px;
+      padding: 4px 14px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--accent);
+      color: #fffaf0;
+      font: inherit;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .follow-button.is-visible {
+      display: inline-block;
+    }
+
+    .poi-note {
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .attribution {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
     @media (min-width: 720px) {
       header {
         padding-left: 24px;
@@ -296,6 +435,13 @@
         </div>
       </section>
 
+      <section id="weatherCard" class="weather-card" aria-label="天気" aria-live="polite">
+        <p class="label">山車付近の天気（今後6時間）</p>
+        <p id="weatherSummary" class="weather-summary"></p>
+        <ul id="weatherHours" class="weather-hours"></ul>
+        <p class="weather-source">予報: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>（CC BY 4.0）</p>
+      </section>
+
       <div id="message" class="message" role="status" aria-live="polite"></div>
 
       <div id="autoUpdatePanel" class="auto-update-panel" aria-live="polite">
@@ -306,6 +452,11 @@
         <button id="manualUpdateButton" class="update-button" type="button">山車の位置を更新する</button>
       </div>
 
+      <div class="map-tools">
+        <div id="poiChips" class="map-tools" aria-label="地図に表示する情報"></div>
+        <button id="followButton" class="follow-button" type="button">山車の位置に戻る</button>
+      </div>
+
       <section class="map-wrap" aria-label="山車の現在地">
         <div id="map"></div>
       </section>
@@ -313,6 +464,7 @@
       <section class="notice" aria-label="注意書き">
         位置情報は目安です。<br>
         電波状況やGPS精度により、実際の山車位置とずれる場合があります。
+        <div id="poiAttribution" class="attribution"></div>
       </section>
     </main>
   </div>
@@ -346,6 +498,19 @@
     const AUTO_UPDATE_LIMIT_MS = 5 * 60 * 1000;
     // テスト時は 10 * 1000 にすると10秒で確認しやすいです。最終値は5分です。
     const DEFAULT_CENTER = [34.768, 137.998];
+    const POI_FILE = "pois.json";
+    const WEATHER_REFRESH_MS = 30 * 60 * 1000;
+    // poi-builder.html と同じ定義にしてください。
+    const CATEGORIES = {
+      toilet:   { label: "トイレ",     short: "WC", color: "#2b6cb0", visible: true },
+      tmptoilet:{ label: "臨時トイレ", short: "WC", color: "#3182ce", visible: true },
+      hq:       { label: "本部",       short: "本", color: "#b7791f", visible: true },
+      firstaid: { label: "救護所",     short: "救", color: "#d53f8c", visible: true },
+      aed:      { label: "AED",        short: "AED", color: "#c53030", visible: true },
+      shelter:  { label: "避難場所",   short: "避", color: "#2f855a", visible: false },
+      parking:  { label: "駐車場",     short: "P",  color: "#4a5568", visible: false },
+      other:    { label: "その他",     short: "他", color: "#6b46c1", visible: true }
+    };
     const params = new URLSearchParams(window.location.search);
     const dashiId = params.get("id") || DEFAULT_DASHI_ID;
 
@@ -356,7 +521,13 @@
       message: document.getElementById("message"),
       autoUpdatePanel: document.getElementById("autoUpdatePanel"),
       autoUpdateMessage: document.getElementById("autoUpdateMessage"),
-      manualUpdateButton: document.getElementById("manualUpdateButton")
+      manualUpdateButton: document.getElementById("manualUpdateButton"),
+      weatherCard: document.getElementById("weatherCard"),
+      weatherSummary: document.getElementById("weatherSummary"),
+      weatherHours: document.getElementById("weatherHours"),
+      poiChips: document.getElementById("poiChips"),
+      poiAttribution: document.getElementById("poiAttribution"),
+      followButton: document.getElementById("followButton")
     };
 
     let latestData = null;
@@ -366,6 +537,9 @@
     let locationRef = null;
     let unsubscribeLocation = null;
     let autoUpdateTimer = null;
+    let followDashi = true;
+    let poiCenter = null;
+    let lastWeatherFetch = 0;
 
     const map = L.map("map", {
       zoomControl: true
@@ -502,18 +676,21 @@
       elements.dashiStatus.textContent = status;
       elements.updatedAt.textContent = formatUpdatedAt(updatedAt);
 
+      const popupHtml = `<strong>${escapeHtml(name)}</strong><br>${escapeHtml(status)}<br>${escapeHtml(formatUpdatedAt(updatedAt))}`;
+
       if (!marker) {
-        marker = L.marker(position, { icon: dashiIcon }).addTo(map);
+        marker = L.marker(position, { icon: dashiIcon, zIndexOffset: 1000 }).addTo(map);
+        marker.bindPopup(popupHtml).openPopup();
       } else {
         marker.setLatLng(position);
+        marker.setPopupContent(popupHtml);
       }
 
-      marker
-        .bindPopup(`<strong>${escapeHtml(name)}</strong><br>${escapeHtml(status)}<br>${escapeHtml(formatUpdatedAt(updatedAt))}`)
-        .openPopup();
-
       refreshMapSize();
-      map.setView(position, map.getZoom(), { animate: true });
+      if (followDashi) {
+        map.setView(position, map.getZoom(), { animate: true });
+      }
+      maybeUpdateWeather();
       setTimeout(() => map.invalidateSize(), 100);
       refreshMapSize();
       updateStaleWarning(data);
@@ -667,9 +844,171 @@
       }
     }
 
+    // ---- 周辺情報（pois.json） ----
+    function poiIcon(cat) {
+      const c = CATEGORIES[cat] || CATEGORIES.other;
+      return L.divIcon({
+        className: "",
+        html: `<div class="poi-icon" style="background:${c.color}">${escapeHtml(c.short)}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14]
+      });
+    }
+
+    async function loadPois() {
+      let data;
+      try {
+        const res = await fetch(POI_FILE, { cache: "no-cache" });
+        if (!res.ok) {
+          return;
+        }
+        data = await res.json();
+      } catch (error) {
+        // pois.json が無い・読めない場合は、山車だけを表示します。
+        return;
+      }
+
+      if (!data || !Array.isArray(data.pois)) {
+        return;
+      }
+
+      if (Array.isArray(data.center)) {
+        poiCenter = data.center;
+      }
+
+      const groups = {};
+      data.pois.forEach((poi) => {
+        const lat = Number(poi.lat);
+        const lng = Number(poi.lng);
+        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+          return;
+        }
+        const cat = CATEGORIES[poi.cat] ? poi.cat : "other";
+        groups[cat] = groups[cat] || L.layerGroup();
+        L.marker([lat, lng], { icon: poiIcon(cat) })
+          .bindPopup(
+            `<strong>${escapeHtml(poi.name || CATEGORIES[cat].label)}</strong><br>${escapeHtml(CATEGORIES[cat].label)}` +
+            (poi.note ? `<br><span class="poi-note">${escapeHtml(poi.note)}</span>` : "")
+          )
+          .addTo(groups[cat]);
+      });
+
+      Object.keys(CATEGORIES).forEach((cat) => {
+        const group = groups[cat];
+        if (!group) {
+          return;
+        }
+        const c = CATEGORIES[cat];
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "poi-chip";
+        chip.innerHTML = `<span class="poi-dot" style="background:${c.color}">${escapeHtml(c.short)}</span>${escapeHtml(c.label)}`;
+
+        const setVisible = (visible) => {
+          chip.setAttribute("aria-pressed", String(visible));
+          if (visible) {
+            group.addTo(map);
+          } else {
+            group.remove();
+          }
+        };
+        setVisible(c.visible);
+        chip.addEventListener("click", () => {
+          setVisible(chip.getAttribute("aria-pressed") !== "true");
+        });
+        elements.poiChips.appendChild(chip);
+      });
+
+      if (Array.isArray(data.attribution) && data.attribution.length) {
+        elements.poiAttribution.textContent = `地図上の施設情報の出典: ${data.attribution.join(" ／ ")}`;
+      }
+
+      refreshMapSize();
+      maybeUpdateWeather();
+    }
+
+    // ---- 天気（Open-Meteo） ----
+    function weatherPosition() {
+      if (isValidLocation(latestData)) {
+        return [Number(latestData.lat), Number(latestData.lng)];
+      }
+      return poiCenter || DEFAULT_CENTER;
+    }
+
+    function maybeUpdateWeather() {
+      if (Date.now() - lastWeatherFetch < WEATHER_REFRESH_MS) {
+        return;
+      }
+      lastWeatherFetch = Date.now();
+      updateWeather();
+    }
+
+    async function updateWeather() {
+      const [lat, lng] = weatherPosition();
+      const url = "https://api.open-meteo.com/v1/forecast" +
+        `?latitude=${lat.toFixed(4)}&longitude=${lng.toFixed(4)}` +
+        "&hourly=temperature_2m,precipitation_probability,precipitation" +
+        "&timezone=Asia%2FTokyo&forecast_hours=6";
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        const json = await res.json();
+        const h = json.hourly;
+        const hours = h.time.map((time, i) => ({
+          hour: Number(time.slice(11, 13)),
+          temp: h.temperature_2m[i],
+          prob: h.precipitation_probability[i],
+          rain: h.precipitation[i]
+        }));
+
+        const maxProb = Math.max(...hours.map((x) => x.prob ?? 0));
+        const firstRain = hours.find((x) => (x.rain ?? 0) >= 0.5);
+        let summary;
+        if (firstRain) {
+          summary = `☂ ${firstRain.hour}時ごろから雨の予報です`;
+        } else if (maxProb >= 50) {
+          summary = `☂ 雨の可能性があります（最大${maxProb}%）`;
+        } else {
+          summary = `しばらく雨の心配は少なそうです（最大${maxProb}%）`;
+        }
+
+        elements.weatherSummary.textContent = summary;
+        elements.weatherSummary.classList.toggle("is-rainy", Boolean(firstRain) || maxProb >= 50);
+        elements.weatherHours.innerHTML = hours.map((x) => (
+          `<li>${x.hour}時<strong>${Math.round(x.temp)}℃</strong>${x.prob ?? "-"}%</li>`
+        )).join("");
+        elements.weatherCard.classList.add("is-visible");
+      } catch (error) {
+        // 天気が取れなくても山車表示には影響させません。次回また試します。
+        lastWeatherFetch = Date.now() - WEATHER_REFRESH_MS + 5 * 60 * 1000;
+      }
+      refreshMapSize();
+    }
+
+    // ---- 追従 ----
+    map.on("dragstart", () => {
+      followDashi = false;
+      elements.followButton.classList.add("is-visible");
+    });
+
+    elements.followButton.addEventListener("click", () => {
+      followDashi = true;
+      elements.followButton.classList.remove("is-visible");
+      if (marker) {
+        map.setView(marker.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
+        marker.openPopup();
+      }
+    });
+
     setInterval(() => {
       updateStaleWarning(latestData);
     }, 30 * 1000);
+
+    setInterval(maybeUpdateWeather, 5 * 60 * 1000);
 
     window.addEventListener("load", refreshMapSize);
     window.addEventListener("resize", refreshMapSize);
@@ -678,6 +1017,7 @@
 
     refreshMapSize();
     startFirebaseListener();
+    loadPois();
   </script>
 </body>
 </html>
