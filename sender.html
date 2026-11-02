@@ -211,6 +211,80 @@
       background: #fffaf0;
     }
 
+    /* 閉ループ状態表示: 送信できているかを色と文字で大きく見せる */
+    .health {
+      padding: 18px 16px;
+      border: 3px solid #9aa3ad;
+      border-radius: 10px;
+      background: #eef0f2;
+      color: #2d3640;
+    }
+
+    .health.is-ok {
+      border-color: var(--ok-line);
+      background: #d7f0df;
+      color: #154a2e;
+    }
+
+    .health.is-warn {
+      border-color: var(--warn-line);
+      background: #fff0b8;
+      color: #5a3f00;
+    }
+
+    .health.is-err {
+      border-color: var(--err-line);
+      background: #fbd5d5;
+      color: #6e1414;
+    }
+
+    .health-title {
+      margin: 0;
+      font-size: 26px;
+      line-height: 1.3;
+      font-weight: 900;
+    }
+
+    .health-detail {
+      margin: 8px 0 0;
+      font-size: 17px;
+      line-height: 1.6;
+      font-weight: 700;
+    }
+
+    .health-checks {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin: 14px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .health-checks li {
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.75);
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .health-checks li::before {
+      content: "・";
+      margin-right: 2px;
+    }
+
+    .health-checks li.ok::before { content: "✅"; }
+    .health-checks li.warn::before { content: "⚠️"; }
+    .health-checks li.ng::before { content: "❌"; }
+    .health-checks li.wait::before { content: "⏳"; }
+
+    @media (min-width: 640px) {
+      .health-checks {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+    }
+
     @media (min-width: 640px) {
       header {
         padding-left: 24px;
@@ -242,6 +316,17 @@
   </header>
 
   <main>
+    <section id="health" class="health" aria-label="送信できているか">
+      <p class="health-title" id="healthTitle" role="status" aria-live="polite">停止中</p>
+      <p class="health-detail" id="healthDetail">送信開始を押すと、観客に位置が届くようになります。</p>
+      <ul class="health-checks">
+        <li id="checkNet" class="wait">通信</li>
+        <li id="checkGps" class="wait">GPS</li>
+        <li id="checkSend" class="wait">届いた確認</li>
+        <li id="checkLock" class="wait">画面ロック防止</li>
+      </ul>
+    </section>
+
     <section class="card" aria-label="送信設定">
       <div class="field">
         <label for="dashiId">山車ID</label>
@@ -320,8 +405,9 @@
     </section>
 
     <section class="notice" aria-label="注意書き">
-      このページを閉じたり、スマホがスリープすると、位置送信が止まる可能性があります。<br>
-      当日はモバイルバッテリーを接続し、画面を開いたまま運用してください。<br>
+      このページを閉じたり、スマホがスリープ・画面ロックすると、位置送信が止まります。<br>
+      止まっても、ロックを解除してこの画面に戻れば自動で再開し、届いたかを確認します。<br>
+      当日はモバイルバッテリーを接続し、スマホの自動ロックを「なし」にして運用してください。<br>
       GPS位置は、電波状況や端末性能により実際の山車位置とずれる場合があります。
     </section>
   </main>
@@ -356,6 +442,21 @@
     const DEFAULT_DASHI_ID = "dashi01";
     const MIN_SEND_DISTANCE_METERS = 5;
     const MIN_SEND_INTERVAL_MS = 30 * 1000;
+
+    /*
+      閉ループ（自動確認）の設定です。
+      人が手順を間違えても、ページ自身が「届いているか」を確かめて、
+      止まっていれば理由と直し方を画面に大きく出し、直ったら自動で再開します。
+    */
+    const WATCHDOG_INTERVAL_MS = 5 * 1000;    // 見張り役が確認する間隔
+    const GPS_STALE_MS = 60 * 1000;           // これ以上GPSが来なければGPSを取り直す
+    const ACK_WARN_MS = 45 * 1000;            // サーバー受信確認がこれ以上ないと黄色
+    const ACK_ERR_MS = 90 * 1000;             // サーバー受信確認がこれ以上ないと赤
+    const CONNECT_GRACE_MS = 10 * 1000;       // 起動直後の接続待ち時間（この間は赤にしない）
+    const HIDDEN_NOTICE_MS = 20 * 1000;       // これ以上画面が閉じていたら再開時に知らせる
+    const STORAGE_SENDING_INTENT = "dashiTracker_sendingIntent";
+    const STORAGE_LAST_ACK = "dashiTracker_lastAckAt";
+
     const params = new URLSearchParams(window.location.search);
     const initialDashiId = params.get("id") || DEFAULT_DASHI_ID;
 
@@ -377,17 +478,35 @@
       accuracyValue: document.getElementById("accuracyValue"),
       distanceValue: document.getElementById("distanceValue"),
       wakeLockValue: document.getElementById("wakeLockValue"),
-      pathValue: document.getElementById("pathValue")
+      pathValue: document.getElementById("pathValue"),
+      health: document.getElementById("health"),
+      healthTitle: document.getElementById("healthTitle"),
+      healthDetail: document.getElementById("healthDetail"),
+      checkNet: document.getElementById("checkNet"),
+      checkGps: document.getElementById("checkGps"),
+      checkSend: document.getElementById("checkSend"),
+      checkLock: document.getElementById("checkLock")
     };
 
     let databaseModule = null;
     let database = null;
+    let firebasePreparing = null;
     let watchId = null;
     let isSending = false;
     let wakeLock = null;
+    let wakeLockRequesting = false;
     let lastSentLocation = null;
-    let lastSentAt = null;
+    let lastSentAt = null;          // サーバーが受け取ったと確認できた時刻
     let latestLocation = null;
+    let lastGpsAt = null;
+    let lastGpsRestartAt = 0;
+    let gpsErrorMessage = null;
+    let writeInFlight = null;
+    let lastWriteError = null;
+    let firebaseConnected = null;
+    let sendingStartedAt = null;
+    let hiddenAt = null;
+    let lastHealthLevel = null;
 
     loadSavedSettings();
     updatePathLabel();
@@ -396,9 +515,18 @@
     elements.saveSettingsButton.addEventListener("click", () => {
       saveSettings(true);
     });
-    elements.startButton.addEventListener("click", startSending);
+    elements.startButton.addEventListener("click", () => startSending({ auto: false }));
     elements.gpsCheckButton.addEventListener("click", checkGpsStatus);
-    elements.stopButton.addEventListener("click", stopSending);
+    elements.stopButton.addEventListener("click", () => stopSending({ confirmFirst: true }));
+    elements.dashiStatus.addEventListener("change", () => {
+      saveSettings(false);
+      if (isSending && latestLocation) {
+        writeLocation(latestLocation, "状況を変更").catch(handleWriteError);
+      }
+    });
+
+    window.addEventListener("online", renderHealth);
+    window.addEventListener("offline", renderHealth);
 
     function updatePathLabel() {
       const dashiId = getDashiId();
@@ -462,6 +590,14 @@
       }
     }
 
+    function removeStorageValue(key) {
+      try {
+        localStorage.removeItem(key);
+      } catch (error) {
+        // 保存領域が使えなくても送信は続ける。
+      }
+    }
+
     function showMessage(type, text) {
       elements.message.className = `message ${type} is-visible`;
       elements.message.textContent = text;
@@ -483,6 +619,13 @@
       }).format(new Date(timestamp));
     }
 
+    function formatDuration(ms) {
+      const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
+    }
+
     function isFirebaseConfigMissing(config) {
       return Object.values(config).some((value) => {
         return typeof value !== "string" || value.trim() === "" || value.includes("ここに");
@@ -494,32 +637,68 @@
         return;
       }
 
+      if (firebasePreparing) {
+        return firebasePreparing;
+      }
+
       if (isFirebaseConfigMissing(firebaseConfig)) {
         throw new Error("Firebase設定が未入力です。sender.html内の firebaseConfig を確認してください。");
       }
 
-      const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
-      databaseModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
-      const app = appModule.initializeApp(firebaseConfig);
-      database = databaseModule.getDatabase(app);
+      firebasePreparing = (async () => {
+        const appModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js");
+        const dbModule = await import("https://www.gstatic.com/firebasejs/10.12.5/firebase-database.js");
+        const app = appModule.initializeApp(firebaseConfig);
+        const db = dbModule.getDatabase(app);
+
+        // サーバーとつながっているかを常に見張る（テザリング切れなどに気づくため）
+        dbModule.onValue(dbModule.ref(db, ".info/connected"), (snapshot) => {
+          firebaseConnected = snapshot.val() === true;
+          renderHealth();
+        });
+
+        databaseModule = dbModule;
+        database = db;
+      })();
+
+      try {
+        await firebasePreparing;
+      } finally {
+        firebasePreparing = null;
+      }
     }
 
-    async function requestWakeLock() {
+    async function requestWakeLock(options = {}) {
       if (!("wakeLock" in navigator)) {
         elements.wakeLockValue.textContent = "非対応";
-        appendMessage("warn", "この端末では画面スリープ防止が使えません。");
+        if (!options.silent) {
+          appendMessage("warn", "この端末では画面スリープ防止が使えません。スマホの自動ロックを「なし」にしてください。");
+        }
         return;
       }
+
+      if (wakeLock || wakeLockRequesting || document.visibilityState !== "visible") {
+        return;
+      }
+
+      wakeLockRequesting = true;
 
       try {
         wakeLock = await navigator.wakeLock.request("screen");
         elements.wakeLockValue.textContent = "有効";
         wakeLock.addEventListener("release", () => {
+          wakeLock = null;
           elements.wakeLockValue.textContent = isSending ? "解除されました" : "停止中";
+          renderHealth();
         });
       } catch (error) {
         elements.wakeLockValue.textContent = "失敗";
-        appendMessage("warn", "画面スリープ防止を有効にできませんでした。GPS送信は続けます。");
+        if (!options.silent) {
+          appendMessage("warn", "画面スリープ防止を有効にできませんでした。スマホの自動ロックを「なし」にしてください。GPS送信は続けます。");
+        }
+      } finally {
+        wakeLockRequesting = false;
+        renderHealth();
       }
     }
 
@@ -529,12 +708,14 @@
         return;
       }
 
+      const lock = wakeLock;
+      wakeLock = null;
+
       try {
-        await wakeLock.release();
+        await lock.release();
       } catch (error) {
         // Wake Lock解除失敗は送信停止の妨げにしない。
       } finally {
-        wakeLock = null;
         elements.wakeLockValue.textContent = "停止中";
       }
     }
@@ -587,6 +768,8 @@
 
     function updateLocationDisplay(location) {
       latestLocation = location;
+      lastGpsAt = location.receivedAt;
+      gpsErrorMessage = null;
       elements.gpsState.textContent = "取得成功";
       elements.latValue.textContent = location.lat.toFixed(6);
       elements.lngValue.textContent = location.lng.toFixed(6);
@@ -643,7 +826,17 @@
       };
     }
 
+    /*
+      Firebaseへ書き込みます。
+      update() の完了 = サーバーが受け取ったという確認（受信確認）です。
+      通信が切れている間は完了しないので、「送った」ではなく「届いた」を基準に表示します。
+      同時に複数の書き込みを積み上げないよう、1件ずつ送ります。
+    */
     async function writeLocation(location, reason) {
+      if (writeInFlight) {
+        return false;
+      }
+
       await prepareFirebase();
 
       const now = Date.now();
@@ -651,26 +844,53 @@
       const locationRef = databaseModule.ref(database, `dashiLocations/${dashiId}`);
 
       saveSettings(false);
+      writeInFlight = { startedAt: now };
 
-      await databaseModule.update(locationRef, {
-        name: getDashiName(),
-        lat: location.lat,
-        lng: location.lng,
-        status: getDashiStatus(),
-        updatedAt: now
-      });
+      try {
+        await databaseModule.update(locationRef, {
+          name: getDashiName(),
+          lat: location.lat,
+          lng: location.lng,
+          status: getDashiStatus(),
+          updatedAt: now
+        });
+      } finally {
+        writeInFlight = null;
+      }
 
+      const ackAt = Date.now();
+      lastWriteError = null;
       lastSentLocation = {
         lat: location.lat,
         lng: location.lng
       };
-      lastSentAt = now;
-      elements.lastSentAt.textContent = formatDateTime(now);
+      lastSentAt = ackAt;
+      writeStorageValue(STORAGE_LAST_ACK, String(ackAt));
+      elements.lastSentAt.textContent = formatDateTime(ackAt);
       elements.sendState.textContent = isSending ? "送信中" : "1回送信済み";
       elements.distanceValue.textContent = "0.0m";
       updateElapsedDisplay();
       updatePathLabel();
-      showMessage("ok", `位置情報をFirebaseへ送信しました。理由: ${reason}`);
+
+      const waitedMs = ackAt - now;
+      showMessage(
+        "ok",
+        waitedMs > 5000
+          ? `通信が戻り、位置が届きました（${formatDuration(waitedMs)}待ち）。理由: ${reason}`
+          : `位置が届いたことを確認しました。理由: ${reason}`
+      );
+      renderHealth();
+      return true;
+    }
+
+    function handleWriteError(error) {
+      const text = String((error && (error.code || error.message)) || "");
+      lastWriteError = /permission/i.test(text)
+        ? "書き込みが拒否されました。山車IDが正しいか、Firebaseのルールを確認してください。"
+        : (error && error.message) || "Firebase書き込みに失敗しました。";
+      showMessage("err", lastWriteError);
+      elements.sendState.textContent = isSending ? "送信中・書き込み失敗" : "書き込み失敗";
+      renderHealth();
     }
 
     async function handlePosition(position) {
@@ -681,14 +901,14 @@
 
       if (!decision.shouldSend) {
         elements.sendState.textContent = isSending ? "送信中・条件待ち" : "停止中";
+        renderHealth();
         return;
       }
 
       try {
         await writeLocation(location, decision.reason);
       } catch (error) {
-        showMessage("err", error.message || "Firebase書き込みに失敗しました。");
-        elements.sendState.textContent = isSending ? "送信中・書き込み失敗" : "書き込み失敗";
+        handleWriteError(error);
       }
     }
 
@@ -698,9 +918,18 @@
         2: "現在位置を取得できません。電波状況やGPS設定を確認してください。",
         3: "位置情報の取得が時間切れになりました。屋外で再試行してください。"
       };
-      showMessage("err", messages[error.code] || error.message || "位置情報の取得に失敗しました。");
+      gpsErrorMessage = messages[error.code] || error.message || "位置情報の取得に失敗しました。";
+
+      // 時間切れは watchPosition が自分で取り直すので、すでに位置があれば赤にしない。
+      if (error.code === 3 && lastGpsAt && Date.now() - lastGpsAt < GPS_STALE_MS) {
+        gpsErrorMessage = null;
+        return;
+      }
+
+      showMessage("err", gpsErrorMessage);
       elements.gpsState.textContent = "取得失敗";
       elements.sendState.textContent = isSending ? "送信中・取得失敗" : "停止中";
+      renderHealth();
     }
 
     async function checkGpsStatus() {
@@ -712,38 +941,18 @@
         updateLocationDisplay(toLocation(position));
         elements.gpsState.textContent = "取得成功";
         showMessage("ok", "GPS位置を取得できました。送信開始を押すとFirebaseへの送信を開始します。");
+        renderHealth();
       } catch (error) {
         handlePositionError(error);
       }
     }
 
-    async function startSending() {
+    function startWatch() {
       if (watchId !== null) {
-        return;
+        navigator.geolocation.clearWatch(watchId);
       }
 
-      if (!navigator.geolocation) {
-        showMessage("err", "この端末では位置情報を取得できません。");
-        return;
-      }
-
-      try {
-        await prepareFirebase();
-      } catch (error) {
-        showMessage("err", error.message || "Firebaseの初期化に失敗しました。");
-        return;
-      }
-
-      isSending = true;
-      elements.sendState.textContent = "送信中";
-      elements.gpsState.textContent = "取得開始";
-      elements.dashiId.disabled = true;
-      elements.startButton.disabled = true;
-      elements.gpsCheckButton.disabled = true;
-      elements.stopButton.disabled = false;
-      showMessage("warn", "位置情報の送信を開始しました。この画面を開いたままにしてください。");
-      await requestWakeLock();
-
+      lastGpsRestartAt = Date.now();
       watchId = navigator.geolocation.watchPosition(
         async (position) => {
           await handlePosition(position);
@@ -757,13 +966,57 @@
       );
     }
 
-    async function stopSending() {
+    async function startSending(options = {}) {
+      if (isSending) {
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        showMessage("err", "この端末では位置情報を取得できません。");
+        return;
+      }
+
+      // 「送信中のつもり」を端末に覚えておく。ページが閉じても、開き直せば自動で再開する。
+      writeStorageValue(STORAGE_SENDING_INTENT, "1");
+
+      isSending = true;
+      sendingStartedAt = Date.now();
+      elements.sendState.textContent = "送信中";
+      elements.gpsState.textContent = "取得開始";
+      elements.dashiId.disabled = true;
+      elements.startButton.disabled = true;
+      elements.gpsCheckButton.disabled = true;
+      elements.stopButton.disabled = false;
+      showMessage(
+        "warn",
+        options.auto
+          ? "前回の送信を自動で再開しました。この画面を開いたままにしてください。"
+          : "位置情報の送信を開始しました。この画面を開いたままにしてください。"
+      );
+      renderHealth();
+
+      prepareFirebase().catch((error) => {
+        // 通信がなくても送信状態は保ち、見張り役が通信が戻ったときに再接続する。
+        appendMessage("err", error.message || "Firebaseの読み込みに失敗しました。通信が戻ると自動で再試行します。");
+      });
+
+      await requestWakeLock();
+      startWatch();
+    }
+
+    async function stopSending(options = {}) {
+      if (options.confirmFirst && !window.confirm("位置の送信を停止しますか？\n停止すると観客の地図で山車が止まって見えます。")) {
+        return;
+      }
+
       if (watchId !== null) {
         navigator.geolocation.clearWatch(watchId);
         watchId = null;
       }
 
+      removeStorageValue(STORAGE_SENDING_INTENT);
       isSending = false;
+      sendingStartedAt = null;
       elements.sendState.textContent = "停止中";
       elements.dashiId.disabled = false;
       elements.startButton.disabled = false;
@@ -771,15 +1024,267 @@
       elements.stopButton.disabled = true;
       await releaseWakeLock();
       showMessage("warn", "位置情報の送信を停止しました。");
+      renderHealth();
     }
 
+    /*
+      見張り役（ウォッチドッグ）です。数秒ごとに次を確かめ、ずれていれば自動で直します。
+      - GPSがしばらく来ない → GPSを取り直す
+      - 止まっていて watchPosition が来ない → 30秒ごとに最新位置を送り直す
+      - Firebaseが読み込めていない → 読み込み直す
+      - 画面ロック防止が外れた → かけ直す
+    */
+    async function watchdogTick() {
+      if (!isSending || document.visibilityState !== "visible") {
+        return;
+      }
+
+      const now = Date.now();
+
+      if (!database && navigator.onLine) {
+        prepareFirebase().catch(() => {});
+      }
+
+      if (!wakeLock) {
+        requestWakeLock({ silent: true });
+      }
+
+      const gpsStale = !lastGpsAt || now - lastGpsAt > GPS_STALE_MS;
+
+      if (gpsStale && now - lastGpsRestartAt > GPS_STALE_MS) {
+        startWatch();
+        return;
+      }
+
+      if (
+        !gpsStale &&
+        latestLocation &&
+        !writeInFlight &&
+        (!lastSentAt || now - lastSentAt >= MIN_SEND_INTERVAL_MS)
+      ) {
+        try {
+          await writeLocation(latestLocation, lastSentAt ? "定期送信" : "初回送信");
+        } catch (error) {
+          handleWriteError(error);
+        }
+      }
+    }
+
+    /*
+      いまの状態を判定します。優先度の高い問題から順に見て、
+      「何が起きているか」と「何をすればいいか」を返します。
+    */
+    function computeHealth(now) {
+      const connectGraceOver = sendingStartedAt && now - sendingStartedAt > CONNECT_GRACE_MS;
+      const checks = {
+        net: !navigator.onLine
+          ? "ng"
+          : firebaseConnected === true
+            ? "ok"
+            : firebaseConnected === false && connectGraceOver ? "ng" : "wait",
+        gps: gpsErrorMessage
+          ? "ng"
+          : !lastGpsAt
+            ? "wait"
+            : now - lastGpsAt > GPS_STALE_MS ? "ng" : "ok",
+        send: !isSending
+          ? (lastSentAt ? "ok" : "wait")
+          : lastWriteError
+            ? "ng"
+            : !lastSentAt
+              ? (connectGraceOver && now - sendingStartedAt > ACK_ERR_MS ? "ng" : "wait")
+              : now - lastSentAt > ACK_ERR_MS
+                ? "ng"
+                : now - lastSentAt > ACK_WARN_MS ? "warn" : "ok",
+        lock: !isSending ? "wait" : wakeLock ? "ok" : "warn"
+      };
+
+      if (!isSending) {
+        const savedAck = Number(readStorageValue(STORAGE_LAST_ACK));
+        return {
+          level: "idle",
+          title: "停止中（観客に位置は届いていません）",
+          detail: savedAck
+            ? `最後に届いたのは ${formatDateTime(savedAck)} です。送信開始を押してください。`
+            : "送信開始を押すと、観客に位置が届くようになります。",
+          checks
+        };
+      }
+
+      const sinceAck = lastSentAt ? now - lastSentAt : null;
+      const ackText = sinceAck === null ? "" : `（最後に届いたのは ${formatDuration(sinceAck)}前）`;
+
+      if (!navigator.onLine) {
+        return {
+          level: "err",
+          title: "インターネットにつながっていません",
+          detail: `テザリング（Wi-Fi）かモバイル通信がONか確認してください。つながると自動で送信を再開します。${ackText}`,
+          checks
+        };
+      }
+
+      if (checks.net === "ng") {
+        return {
+          level: "err",
+          title: "サーバーにつながりません",
+          detail: `テザリング元のスマホで「インターネット共有」がONか、電波があるか確認してください。つながると自動で再開します。${ackText}`,
+          checks
+        };
+      }
+
+      if (checks.gps === "ng") {
+        return {
+          level: "err",
+          title: "GPSが取れていません",
+          detail: gpsErrorMessage || "空が見える場所にスマホを置いてください。自動で取り直しています。",
+          checks
+        };
+      }
+
+      if (lastWriteError) {
+        return { level: "err", title: "位置が届いていません", detail: lastWriteError, checks };
+      }
+
+      if (checks.send === "ng") {
+        return {
+          level: "err",
+          title: sinceAck === null ? "まだ一度も届いていません" : `${formatDuration(sinceAck)} 届いていません`,
+          detail: "通信を確認してください。直れば自動で送り直します。直らなければページを再読み込みしてください。",
+          checks
+        };
+      }
+
+      if (checks.send === "wait") {
+        return {
+          level: "warn",
+          title: "届いたか確認しています…",
+          detail: "最初の位置がサーバーに届くのを待っています。",
+          checks
+        };
+      }
+
+      if (checks.send === "warn") {
+        return {
+          level: "warn",
+          title: "届くのが遅れています",
+          detail: `通信が弱い可能性があります${ackText}。自動で送り直しています。`,
+          checks
+        };
+      }
+
+      if (checks.lock !== "ok") {
+        return {
+          level: "warn",
+          title: "届いています（画面ロックに注意）",
+          detail: `画面が消えると送信が止まります。自動ロックを「なし」にするか、画面を時々タッチしてください。${ackText}`,
+          checks
+        };
+      }
+
+      return {
+        level: "ok",
+        title: "観客に届いています",
+        detail: `最後に届いたのは ${formatDuration(sinceAck)}前です。このまま画面を開いておいてください。`,
+        checks
+      };
+    }
+
+    function setTextIfChanged(element, text) {
+      if (element.textContent !== text) {
+        element.textContent = text;
+      }
+    }
+
+    function renderHealth() {
+      const health = computeHealth(Date.now());
+      const levelClass = health.level === "idle" ? "" : ` is-${health.level}`;
+      const className = `health${levelClass}`;
+
+      if (elements.health.className !== className) {
+        elements.health.className = className;
+      }
+
+      setTextIfChanged(elements.healthTitle, health.title);
+      setTextIfChanged(elements.healthDetail, health.detail);
+      elements.checkNet.className = health.checks.net;
+      elements.checkGps.className = health.checks.gps;
+      elements.checkSend.className = health.checks.send;
+      elements.checkLock.className = health.checks.lock;
+
+      const titlePrefix = { ok: "🟢", warn: "🟡", err: "🔴", idle: "⚪" }[health.level];
+      const pageTitle = `${titlePrefix} 屋台トラッカー 送信用`;
+      if (document.title !== pageTitle) {
+        document.title = pageTitle;
+      }
+
+      // 赤に変わった瞬間だけ振動で知らせる（対応端末のみ）
+      if (health.level === "err" && lastHealthLevel !== "err" && navigator.vibrate) {
+        navigator.vibrate([300, 150, 300]);
+      }
+      lastHealthLevel = health.level;
+    }
+
+    /*
+      画面ロック（暗証番号）対策:
+      ロックされている間はブラウザが送信を止めます。アプリから暗証番号は入力できないので、
+      ロックを解除してこの画面に戻った瞬間に、GPS・画面ロック防止をかけ直し、すぐ1回送って届いたかを確かめます。
+    */
     document.addEventListener("visibilitychange", async () => {
-      if (document.visibilityState === "visible" && isSending && !wakeLock) {
-        await requestWakeLock();
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+
+      if (!isSending) {
+        hiddenAt = null;
+        renderHealth();
+        return;
+      }
+
+      const hiddenMs = hiddenAt ? Date.now() - hiddenAt : 0;
+      hiddenAt = null;
+
+      await requestWakeLock({ silent: true });
+      startWatch();
+
+      if (hiddenMs > HIDDEN_NOTICE_MS) {
+        showMessage("warn", `画面が ${formatDuration(hiddenMs)} 閉じていました。送信を再開して、届いたかを確認しています。`);
+      }
+
+      try {
+        const position = await getCurrentPosition();
+        const location = toLocation(position);
+        updateLocationDisplay(location);
+        const reason = hiddenMs > HIDDEN_NOTICE_MS
+          ? `画面が ${formatDuration(hiddenMs)} 閉じていたので再送信（その間は止まっていました）`
+          : "画面に戻ったので再送信";
+        await writeLocation(location, reason);
+      } catch (error) {
+        // GPSのエラーは数値コード（1〜3）、Firebaseのエラーは文字列コードを持つ。
+        if (error && typeof error.code === "number") {
+          handlePositionError(error);
+        } else {
+          handleWriteError(error);
+        }
       }
     });
 
-    setInterval(updateElapsedDisplay, 1000);
+    // 起動時: Firebaseに先につないでおき、送信開始前から通信状態を表示する。
+    prepareFirebase().catch(() => {});
+
+    // 起動時: 前回「送信中」のまま閉じていたら、自動で再開する。
+    if (readStorageValue(STORAGE_SENDING_INTENT) === "1") {
+      startSending({ auto: true });
+    }
+
+    renderHealth();
+
+    setInterval(() => {
+      updateElapsedDisplay();
+      renderHealth();
+    }, 1000);
+
+    setInterval(watchdogTick, WATCHDOG_INTERVAL_MS);
   </script>
 </body>
 </html>
