@@ -1,6 +1,7 @@
 // 天竜西遊 〜雲を越えて〜
 // A small on-rails dragon shooter. Three.js only, no build step.
 import * as THREE from './three.module.min.js';
+import * as TX from './textures.js';
 
 // ============================================================
 // Utilities
@@ -108,6 +109,19 @@ const sunGlow = glowSprite(0xffe6a0, 380, 0.75);
 const sunCore = glowSprite(0xffffff, 110, 1);
 scene.add(sunGlow, sunCore);
 
+// Environment map (sky + sun) so shiny materials reflect the sky
+{
+  const envScene = new THREE.Scene();
+  envScene.add(new THREE.Mesh(sky.geometry, sky.material));
+  const sunBall = new THREE.Mesh(new THREE.SphereGeometry(70, 16, 8), new THREE.MeshBasicMaterial({ color: 0xfff4d0 }));
+  sunBall.position.copy(sunDir).multiplyScalar(600);
+  envScene.add(sunBall);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(envScene, 0.03, 0.1, 2000).texture;
+  pmrem.dispose();
+}
+const std = (o) => new THREE.MeshStandardMaterial(o);
+
 // Material helpers
 const toon = (c, extra = {}) => new THREE.MeshToonMaterial({ color: c, ...extra });
 const lam = (c, extra = {}) => new THREE.MeshLambertMaterial({ color: c, flatShading: true, ...extra });
@@ -143,7 +157,7 @@ function railAt(s, out) {
 // ============================================================
 const AHEAD = 480, BEHIND = 200, SPAN = AHEAD + BEHIND;
 
-const seaFloor = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), lam(0xfff3de));
+const seaFloor = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), lam(0xffffff, { map: TX.cloudFloorTex() }));
 seaFloor.rotation.x = -Math.PI / 2; seaFloor.position.y = -36;
 scene.add(seaFloor);
 
@@ -161,8 +175,11 @@ function setCloud(i) {
 }
 for (let i = 0; i < CLOUD_N; i++) cloudD.push({ x: 0, y: 0, z: 0, s: 1, r: 0 });
 
-const rockMat = lam(0xc9a57c), grassMat = lam(0x69c46b), treeMat = lam(0x3c9b58);
-const pagodaMat = lam(0xd8432f), roofMat = lam(0x2e7a6e), goldMat = lam(0xf2c14e);
+const rockT = TX.rockTex();
+const rockMat = lam(0xffffff, { map: rockT.map, bumpMap: rockT.bump, bumpScale: 2.5 });
+const grassMat = lam(0xffffff, { map: TX.grassTex() }), treeMat = lam(0x3c9b58);
+const pagodaMat = lam(0xffffff, { map: TX.pagodaWallTex() }), roofMat = lam(0xffffff, { map: TX.roofTileTex() });
+const goldMat = std({ color: 0xf2c14e, metalness: 0.8, roughness: 0.3 });
 const puffMat = lam(0xffffff);
 
 function makePagoda(levels) {
@@ -215,9 +232,10 @@ function makePuff() {
   return g;
 }
 
+const plaqueMap = TX.plaqueTex('西天門');
 function makeGate() {
   const g = new THREE.Group();
-  const red = lam(0xd93a2b), teal = roofMat;
+  const red = lam(0xffffff, { map: TX.lacquerTex() }), teal = roofMat;
   for (const sx of [-1, 1]) {
     const p = new THREE.Mesh(G.cyl, red); p.scale.set(0.9, 26, 0.9); p.position.set(sx * 13, 13, 0); g.add(p);
     const base = makePuff(); base.scale.setScalar(0.9); base.position.set(sx * 13, 0, 0); g.add(base);
@@ -227,7 +245,7 @@ function makeGate() {
   const roof = new THREE.Mesh(G.box, teal); roof.scale.set(35, 0.7, 4.2); roof.position.y = 22.4; g.add(roof);
   const ridge = new THREE.Mesh(G.cone4, teal); ridge.scale.set(17, 2.4, 2.2); ridge.rotation.y = Math.PI / 4;
   ridge.scale.set(24, 2.4, 2.4); ridge.position.y = 23.8; g.add(ridge);
-  const plaque = new THREE.Mesh(G.box, lam(0xf2c14e)); plaque.scale.set(5, 2.6, 0.5); plaque.position.y = 19.3; g.add(plaque);
+  const plaque = new THREE.Mesh(G.box, lam(0xffffff, { map: plaqueMap })); plaque.scale.set(5, 2.6, 0.5); plaque.position.y = 19.3; g.add(plaque);
   return g;
 }
 
@@ -314,7 +332,11 @@ const DR = {
 };
 rail.add(DR.group);
 {
-  const jade = toon(0x2bb38f), belly = toon(0xf6cf5a), mane = toon(0xff6a3d), horn = toon(0xfff0c8);
+  const scales = TX.dragonScales();
+  const jade = std({ map: scales.map, bumpMap: scales.bump, bumpScale: 3, roughness: 0.35, metalness: 0.35 });
+  const belly = std({ map: TX.bellyPlates(), roughness: 0.3, metalness: 0.6 });
+  const mane = std({ map: TX.flameTex(), roughness: 0.5, emissive: 0x5a1400 });
+  const horn = std({ color: 0xfff0c8, roughness: 0.25, metalness: 0.3 });
   const eyeW = basic(0xfff6a0), eyeB = basic(0x151515);
   const h = DR.head;
   const add = (geo, mat, sx, sy, sz, x, y, z, parent = h) => {
@@ -691,9 +713,10 @@ function hurt(n) {
 // ============================================================
 // Enemy builders (faces point toward +z; we lookAt the dragon)
 // ============================================================
+const bossHornMat = std({ map: TX.hornTex(), metalness: 0.85, roughness: 0.25 });
 const EM = {
-  red: toon(0xe53935, { emissive: 0x4a0d00 }), gold: toon(0xf6c343), white: basic(0xffffff), black: basic(0x151515),
-  dark: basic(0x3a0a0a), pink: toon(0xff7b9c), purple: toon(0x6c43a8), purpleDark: toon(0x4a2a7a, { side: THREE.DoubleSide }),
+  red: toon(0xffffff, { map: TX.lanternTex(), emissive: 0x3a0800 }), gold: toon(0xf6c343), white: basic(0xffffff), black: basic(0x151515),
+  dark: basic(0x3a0a0a), pink: toon(0xff7b9c), purple: toon(0x6c43a8), purpleDark: toon(0xffffff, { map: TX.wingTex(), side: THREE.DoubleSide }),
   yellowEye: basic(0xffe14d), blue: toon(0x3f86ff), cloud: toon(0xffffff), horn: toon(0xffe08a), redEye: basic(0xff3b30),
   peach: toon(0xffa0b4), leaf: toon(0x4fbf5a),
 };
@@ -910,7 +933,7 @@ function makeHorn(side) {
     const a = pts[k], b = pts[k + 1];
     const r0 = 0.85 * (1 - k / 5.5), r1 = 0.85 * (1 - (k + 1) / 5.5);
     const len = a.distanceTo(b);
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(r1, 0.12), r0, len * 1.08, 9), EM.gold);
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(Math.max(r1, 0.12), r0, len * 1.08, 9), bossHornMat);
     m.position.copy(a).add(b).multiplyScalar(0.5);
     m.quaternion.setFromUnitVectors(UP, _v1.subVectors(b, a).normalize());
     g.add(m);
@@ -919,9 +942,11 @@ function makeHorn(side) {
   return { group: g, marker };
 }
 
+const bossFur = TX.furTex([150, 40, 36], [70, 12, 12], [220, 90, 60]);
+const bossMuzzle = TX.furTex([214, 160, 104], [140, 96, 60], [245, 210, 160]);
 function spawnBoss() {
   const root = new THREE.Group(); root.position.set(0, 14, -300); root.scale.setScalar(1.5); rail.add(root);
-  const hide = toon(0x9c2f2f), snout = toon(0xd9a066), fire = toon(0xff7b1c, { emissive: 0x7a2000 });
+  const hide = std({ map: bossFur, roughness: 0.85 }), snout = std({ map: bossMuzzle, roughness: 0.7 }), fire = toon(0xff7b1c, { emissive: 0x7a2000 });
   const head = part(root, G.sphere, hide, 4, 3.6, 3.8, 0, 0, 0);
   part(root, G.sphere, snout, 2.5, 1.7, 1.9, 0, -1.6, 3.0);
   for (const s of [-1, 1]) {
