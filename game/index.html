@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>天竜西遊 〜雲を越えて〜</title>
+<style>
+  html,body{margin:0;height:100%;overflow:hidden;background:#9fd3ff;touch-action:none;
+    -webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
+    font-family:"Hiragino Kaku Gothic ProN","Hiragino Sans","Noto Sans JP","Yu Gothic",Meiryo,sans-serif}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+  #hud{cursor:none;z-index:2}
+  .overlay{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;
+    justify-content:safe center;color:#fff;text-align:center;padding:20px;box-sizing:border-box;
+    background:radial-gradient(ellipse at center,rgba(30,50,90,.25),rgba(20,30,70,.65));
+    text-shadow:0 2px 6px rgba(0,0,0,.45);overflow:auto}
+  .hidden{display:none!important}
+  h1{font-size:clamp(40px,9vw,84px);margin:0;letter-spacing:.12em;color:#ffe9a8;
+    text-shadow:0 0 18px rgba(255,170,60,.8),0 4px 0 #a33a1a,0 6px 12px rgba(0,0,0,.5)}
+  .sub{font-size:clamp(16px,3.4vw,26px);margin:.3em 0 1em;color:#fff6dc;letter-spacing:.2em}
+  .story{max-width:560px;line-height:1.8;margin:0 0 1em;font-size:15px}
+  .howto{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:1.2em}
+  .howto div{background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.35);border-radius:12px;
+    padding:10px 16px;text-align:left;font-size:14px;line-height:1.75;min-width:220px}
+  .howto b{color:#ffe08a}
+  .btn{font:inherit;font-size:22px;font-weight:bold;color:#5a1a08;cursor:pointer;
+    background:linear-gradient(#ffe9a0,#f6b73c);border:3px solid #fff3c9;border-radius:40px;
+    padding:12px 44px;box-shadow:0 4px 0 #a5521b,0 8px 18px rgba(0,0,0,.35);letter-spacing:.15em}
+  .btn:active{transform:translateY(3px);box-shadow:0 1px 0 #a5521b}
+  #result h2{font-size:clamp(30px,6vw,52px);margin:0 0 .4em;color:#ffe9a8}
+  #result .score{font-size:clamp(28px,6vw,46px);margin:.1em 0 .3em}
+  #result .detail{font-size:16px;line-height:1.9;margin-bottom:1.3em}
+  #result .rank{font-size:22px;color:#ffd66b;margin-bottom:1em}
+  .ctl{position:fixed;z-index:5;border-radius:50%;background:rgba(20,45,90,.4);
+    border:2px solid rgba(255,255,255,.65);color:#fff;font-size:24px;line-height:1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;padding:0;
+    -webkit-tap-highlight-color:transparent}
+  #turnL,#turnR{bottom:calc(18px + env(safe-area-inset-bottom));width:64px;height:64px}
+  #turnL{left:18px} #turnR{right:18px}
+  #mute,#pauseBtn{top:calc(124px + env(safe-area-inset-top));width:38px;height:38px;font-size:17px}
+  #mute{right:62px} #pauseBtn{right:16px}
+  @media (pointer:coarse){ .pc-only{display:none!important} }
+  @media (pointer:fine){ .touch-only{display:none!important} }
+  .note{font-size:12px;opacity:.8;margin-top:1em}
+</style>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<canvas id="hud"></canvas>
+
+<button id="turnL" class="ctl hidden" aria-label="左に視点回転">◀</button>
+<button id="turnR" class="ctl hidden" aria-label="右に視点回転">▶</button>
+<button id="mute" class="ctl hidden" aria-label="音のオンオフ">♪</button>
+<button id="pauseBtn" class="ctl hidden" aria-label="一時停止">Ⅱ</button>
+
+<div id="title" class="overlay">
+  <h1>天竜西遊</h1>
+  <div class="sub">〜 雲を越えて 〜</div>
+  <p class="story">西の果ての聖地をめざす旅人と、雲を泳ぐ一匹の龍。<br>
+    行く手をはばむ妖怪たちを打ち払い、雲海の空を駆け抜けろ！</p>
+  <div class="howto">
+    <div class="pc-only"><b>パソコン</b><br>
+      マウス … 照準を動かす<br>
+      クリック … 龍珠弾を撃つ<br>
+      長押しでなぞる … ロックオン<br>
+      離す … 追尾する光弾を一斉発射<br>
+      Q / E … 視点を左右に回す<br>
+      P … 一時停止　M … 音</div>
+    <div class="touch-only"><b>スマホ・タブレット</b><br>
+      指でなぞる … 照準を動かす<br>
+      タップ … 龍珠弾を撃つ<br>
+      押したままなぞる … ロックオン<br>
+      指を離す … 光弾を一斉発射<br>
+      ◀ ▶ … 視点を左右に回す<br>
+      右上のレーダーで敵の方向を確認</div>
+  </div>
+  <button id="startBtn" class="btn">出 発</button>
+  <div class="note">敵は前だけでなく、横や後ろからも来る。レーダーを見て視点を回そう。</div>
+</div>
+
+<div id="pause" class="overlay hidden">
+  <h2 style="font-size:40px;margin:0 0 1em">一時停止</h2>
+  <button id="resumeBtn" class="btn">再 開</button>
+</div>
+
+<div id="result" class="overlay hidden">
+  <h2 id="resTitle"></h2>
+  <div class="score" id="resScore"></div>
+  <div class="rank" id="resRank"></div>
+  <div class="detail" id="resDetail"></div>
+  <button id="retryBtn" class="btn">もう一度</button>
+</div>
+
+<script type="module" src="./main.js"></script>
+</body>
+</html>
