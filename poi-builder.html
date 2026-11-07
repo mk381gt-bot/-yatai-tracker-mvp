@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>周辺情報づくり | 屋台トラッカー</title>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f5f1e8;
+      --card: #fffaf0;
+      --ink: #1f2933;
+      --muted: #5b6470;
+      --line: #dacfb9;
+      --accent: #b63224;
+      --warning-bg: #fff3cd;
+      --warning-line: #d39e00;
+      --error-bg: #fde8e8;
+      --error-line: #c53030;
+      --ok-bg: #e6f4ea;
+      --ok-line: #2f855a;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+    }
+
+    header {
+      padding: 16px 18px 12px;
+      background: #8f241b;
+      color: #fffaf0;
+      border-bottom: 4px solid #d7a83d;
+    }
+
+    h1 { margin: 0; font-size: 22px; }
+    .subtitle { margin: 6px 0 0; font-size: 14px; line-height: 1.5; opacity: 0.94; }
+
+    main {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card {
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--card);
+      line-height: 1.6;
+    }
+
+    .card h2 { margin: 0 0 8px; font-size: 17px; }
+    .card p { margin: 0 0 8px; }
+
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+    label { font-weight: 700; font-size: 15px; }
+
+    select, input[type="text"] {
+      min-height: 44px;
+      padding: 6px 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      background: #fff;
+    }
+
+    input[type="text"] { flex: 1 1 180px; min-width: 0; }
+
+    button {
+      min-height: 44px;
+      padding: 8px 14px;
+      border: 0;
+      border-radius: 8px;
+      background: var(--accent);
+      color: #fffaf0;
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    button.secondary { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    button[aria-pressed="true"] { background: #2f855a; color: #fff; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    #map {
+      width: 100%;
+      height: 460px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+
+    .message { display: none; padding: 12px 14px; border-radius: 8px; border: 1px solid; font-weight: 700; line-height: 1.6; }
+    .message.is-visible { display: block; }
+    .message.warning { background: var(--warning-bg); border-color: var(--warning-line); color: #5f4300; }
+    .message.error { background: var(--error-bg); border-color: var(--error-line); color: #7b1e1e; }
+    .message.ok { background: var(--ok-bg); border-color: var(--ok-line); color: #1f5f3d; }
+
+    .counts { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+    .counts li { padding: 4px 10px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-size: 14px; }
+
+    .poi-icon {
+      width: 28px;
+      height: 28px;
+      display: grid;
+      place-items: center;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 900;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+    }
+
+    .center-icon {
+      width: 18px;
+      height: 18px;
+      border: 3px solid #fff;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 0 2px var(--accent);
+    }
+
+    .popup-delete { margin-top: 6px; min-height: 36px; padding: 4px 10px; font-size: 14px; }
+    small { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>周辺情報づくり（準備用）</h1>
+    <p class="subtitle">祭りの前日までに、観客マップに出すトイレ・AED・避難場所などをまとめて pois.json を作ります。</p>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>1. 範囲を決める</h2>
+      <p>地図をタップすると、そこが中心（赤い点）になります。巡行ルート全体が円に入るようにしてください。</p>
+      <div class="row">
+        <label for="radius">半径</label>
+        <select id="radius">
+          <option value="500">500m</option>
+          <option value="1000" selected>1km</option>
+          <option value="1500">1.5km</option>
+          <option value="2000">2km</option>
+        </select>
+        <button id="collectButton" type="button">公開データを集める</button>
+      </div>
+    </section>
+
+    <div id="message" class="message" role="status" aria-live="polite"></div>
+
+    <div id="map"></div>
+
+    <section class="card">
+      <h2>2. 祭り独自の場所を追加する</h2>
+      <p>本部・臨時トイレ・救護所などは公開データにないので、手で追加します。<br>
+        「追加モード」をONにして地図をタップしてください。追加した点は、タップして削除できます。</p>
+      <div class="row">
+        <select id="customCategory" aria-label="種類"></select>
+        <input id="customName" type="text" placeholder="名前（例: 祭典本部）" aria-label="名前">
+        <button id="addModeButton" type="button" class="secondary" aria-pressed="false">追加モード</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. 保存する</h2>
+      <ul id="counts" class="counts"></ul>
+      <p style="margin-top: 10px;">ダウンロードした pois.json を、view.html と同じ場所に置いてください。</p>
+      <div class="row">
+        <button id="downloadButton" type="button">pois.json をダウンロード</button>
+        <label class="secondary" style="font-weight: 400;">
+          既存の pois.json を開いて編集:
+          <input id="loadFile" type="file" accept="application/json,.json">
+        </label>
+      </div>
+      <p style="margin-top: 10px;"><small>
+        出典: トイレ・AED・駐車場 © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>（ODbL）／
+        避難場所 <a href="https://www.gsi.go.jp/bousaichiri/hinanbasho.html" target="_blank" rel="noopener">国土地理院 指定緊急避難場所データ</a>
+      </small></p>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const DEFAULT_CENTER = [34.768, 137.998];
+
+    // view.html と同じ定義にしてください。
+    const CATEGORIES = {
+      toilet:   { label: "トイレ",     short: "WC", color: "#2b6cb0" },
+      aed:      { label: "AED",        short: "AED", color: "#c53030" },
+      shelter:  { label: "避難場所",   short: "避", color: "#2f855a" },
+      parking:  { label: "駐車場",     short: "P",  color: "#4a5568" },
+      hq:       { label: "本部",       short: "本", color: "#b7791f" },
+      firstaid: { label: "救護所",     short: "救", color: "#d53f8c" },
+      tmptoilet:{ label: "臨時トイレ", short: "WC", color: "#3182ce" },
+      other:    { label: "その他",     short: "他", color: "#6b46c1" }
+    };
+    const CUSTOM_CATEGORIES = ["hq", "tmptoilet", "firstaid", "other"];
+
+    const OVERPASS_ENDPOINTS = [
+      "https://overpass-api.de/api/interpreter",
+      "https://overpass.private.coffee/api/interpreter",
+      "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+    ];
+
+    const DISASTER_LABELS = {
+      disaster1: "洪水",
+      disaster2: "崖崩れ・土石流・地滑り",
+      disaster3: "高潮",
+      disaster4: "地震",
+      disaster5: "津波",
+      disaster6: "大規模な火事",
+      disaster7: "内水氾濫",
+      disaster8: "火山"
+    };
+
+    const el = (id) => document.getElementById(id);
+    const state = {
+      center: DEFAULT_CENTER.slice(),
+      radius: 1000,
+      pois: []
+    };
+
+    const map = L.map("map").setView(DEFAULT_CENTER, 15);
+    L.tileLayer("https://cyberjapandata.gsi.go.jp/xyz/std/{z}/{x}/{y}.png", {
+      attribution: '<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>',
+      maxZoom: 18
+    }).addTo(map);
+
+    const centerMarker = L.marker(DEFAULT_CENTER, {
+      icon: L.divIcon({ className: "", html: '<div class="center-icon"></div>', iconSize: [18, 18], iconAnchor: [9, 9] })
+    }).addTo(map);
+    const radiusCircle = L.circle(DEFAULT_CENTER, { radius: 1000, color: "#b63224", weight: 2, fillOpacity: 0.05 }).addTo(map);
+    const poiLayer = L.layerGroup().addTo(map);
+
+    let addMode = false;
+
+    function showMessage(type, html) {
+      el("message").className = `message ${type} is-visible`;
+      el("message").innerHTML = html;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    }
+
+    function distanceM(a, b) {
+      const R = 6371000;
+      const toRad = (d) => d * Math.PI / 180;
+      const dLat = toRad(b[0] - a[0]);
+      const dLng = toRad(b[1] - a[1]);
+      const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a[0])) * Math.cos(toRad(b[0])) * Math.sin(dLng / 2) ** 2;
+      return 2 * R * Math.asin(Math.sqrt(h));
+    }
+
+    function setCenter(latlng) {
+      state.center = [latlng[0], latlng[1]];
+      centerMarker.setLatLng(state.center);
+      radiusCircle.setLatLng(state.center);
+    }
+
+    function poiIcon(cat) {
+      const c = CATEGORIES[cat] || CATEGORIES.other;
+      return L.divIcon({
+        className: "",
+        html: `<div class="poi-icon" style="background:${c.color}">${escapeHtml(c.short)}</div>`,
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14]
+      });
+    }
+
+    function render() {
+      poiLayer.clearLayers();
+      state.pois.forEach((poi) => {
+        const c = CATEGORIES[poi.cat] || CATEGORIES.other;
+        const m = L.marker([poi.lat, poi.lng], { icon: poiIcon(poi.cat) }).addTo(poiLayer);
+        const popup = document.createElement("div");
+        popup.innerHTML = `<strong>${escapeHtml(poi.name)}</strong><br>${escapeHtml(c.label)}` +
+          (poi.note ? `<br><small>${escapeHtml(poi.note)}</small>` : "");
+        const del = document.createElement("button");
+        del.type = "button";
+        del.className = "popup-delete";
+        del.textContent = "この点を削除";
+        del.addEventListener("click", () => {
+          state.pois = state.pois.filter((p) => p !== poi);
+          render();
+        });
+        popup.appendChild(del);
+        m.bindPopup(popup);
+      });
+
+      const counts = {};
+      state.pois.forEach((p) => { counts[p.cat] = (counts[p.cat] || 0) + 1; });
+      el("counts").innerHTML = Object.keys(CATEGORIES)
+        .filter((k) => counts[k])
+        .map((k) => `<li>${escapeHtml(CATEGORIES[k].label)} ${counts[k]}</li>`)
+        .join("") || "<li>まだ何もありません</li>";
+    }
+
+    // ---- OpenStreetMap (Overpass API) ----
+    async function fetchOverpass(center, radius) {
+      const [lat, lng] = center;
+      const around = `(around:${radius},${lat},${lng})`;
+      const query = `[out:json][timeout:25];(
+        nwr["amenity"="toilets"]["access"!~"^(private|no|customers)$"]${around};
+        nwr["emergency"="defibrillator"]${around};
+        nwr["amenity"="parking"]["access"!~"^(private|no|customers)$"]${around};
+      );out center tags;`;
+
+      let lastError = null;
+      for (const endpoint of OVERPASS_ENDPOINTS) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 30000);
+        try {
+          const res = await fetch(endpoint, {
+            method: "POST",
+            body: new URLSearchParams({ data: query }),
+            signal: controller.signal
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const json = await res.json();
+          return json.elements.map(osmToPoi).filter(Boolean);
+        } catch (error) {
+          lastError = error;
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      throw lastError || new Error("Overpass APIに接続できませんでした");
+    }
+
+    function osmToPoi(e) {
+      const tags = e.tags || {};
+      const lat = e.lat ?? (e.center && e.center.lat);
+      const lng = e.lon ?? (e.center && e.center.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+
+      let cat;
+      const notes = [];
+      if (tags.amenity === "toilets") {
+        cat = "toilet";
+        if (tags.wheelchair === "yes") notes.push("車いす対応");
+        if (tags.diaper === "yes" || tags.changing_table === "yes") notes.push("おむつ替え台あり");
+      } else if (tags.emergency === "defibrillator") {
+        cat = "aed";
+        const where = tags["defibrillator:location:ja"] || tags["defibrillator:location"] || tags.description;
+        if (where) notes.push(where);
+      } else if (tags.amenity === "parking") {
+        cat = "parking";
+        if (tags.capacity) notes.push(`${tags.capacity}台`);
+        if (tags.fee === "yes") notes.push("有料");
+        if (tags.fee === "no") notes.push("無料");
+      } else {
+        return null;
+      }
+      if (tags.opening_hours) notes.push(`営業時間 ${tags.opening_hours}`);
+
+      return {
+        id: `osm-${e.type}-${e.id}`,
+        cat,
+        name: tags["name:ja"] || tags.name || CATEGORIES[cat].label,
+        lat: Number(lat.toFixed(6)),
+        lng: Number(lng.toFixed(6)),
+        note: notes.join(" / "),
+        src: "osm"
+      };
+    }
+
+    // ---- 国土地理院 指定緊急避難場所 (zoom 10 のGeoJSONタイル、災害種別ごと) ----
+    function tileRange(center, radius, z) {
+      const n = 2 ** z;
+      const dLat = radius / 111320;
+      const dLng = radius / (111320 * Math.cos(center[0] * Math.PI / 180));
+      const toX = (lng) => Math.floor((lng + 180) / 360 * n);
+      const toY = (lat) => Math.floor((1 - Math.asinh(Math.tan(lat * Math.PI / 180)) / Math.PI) / 2 * n);
+      const tiles = [];
+      for (let x = toX(center[1] - dLng); x <= toX(center[1] + dLng); x++) {
+        for (let y = toY(center[0] + dLat); y <= toY(center[0] - dLat); y++) {
+          tiles.push([x, y]);
+        }
+      }
+      return tiles;
+    }
+
+    async function fetchShelters(center, radius) {
+      const tiles = tileRange(center, radius, 10);
+      const requests = [];
+      for (let i = 1; i <= 8; i++) {
+        const layer = `skhb0${i}`;
+        tiles.forEach(([x, y]) => {
+          requests.push(
+            fetch(`https://cyberjapandata.gsi.go.jp/xyz/${layer}/10/${x}/${y}.geojson`)
+              .then((r) => (r.ok ? r.json() : { features: [] }))
+              .catch(() => ({ features: [] }))
+          );
+        });
+      }
+      const results = await Promise.all(requests);
+
+      const byKey = new Map();
+      results.forEach((fc) => {
+        (fc.features || []).forEach((f) => {
+          const [lng, lat] = f.geometry.coordinates;
+          if (distanceM(center, [lat, lng]) > radius) return;
+          const key = `${lat.toFixed(5)},${lng.toFixed(5)},${f.properties.name}`;
+          if (byKey.has(key)) return;
+          const p = f.properties;
+          const kinds = Object.keys(DISASTER_LABELS).filter((k) => p[k] === 1).map((k) => DISASTER_LABELS[k]);
+          byKey.set(key, {
+            id: `gsi-${key}`,
+            cat: "shelter",
+            name: p.name || "避難場所",
+            lat: Number(lat.toFixed(6)),
+            lng: Number(lng.toFixed(6)),
+            note: [kinds.length ? `対応: ${kinds.join("・")}` : "", p.address || ""].filter(Boolean).join(" / "),
+            src: "gsi"
+          });
+        });
+      });
+      return [...byKey.values()];
+    }
+
+    async function collect() {
+      state.radius = Number(el("radius").value);
+      el("collectButton").disabled = true;
+      showMessage("warning", "公開データを集めています。30秒ほどかかることがあります。");
+
+      const custom = state.pois.filter((p) => p.src === "custom");
+      const [osm, gsi] = await Promise.allSettled([
+        fetchOverpass(state.center, state.radius),
+        fetchShelters(state.center, state.radius)
+      ]);
+
+      const collected = [];
+      const problems = [];
+      if (osm.status === "fulfilled") collected.push(...osm.value);
+      else problems.push(`OpenStreetMap（トイレ・AED・駐車場）を取得できませんでした: ${escapeHtml(osm.reason.message)}<br>少し時間をおいてもう一度押してください。`);
+      if (gsi.status === "fulfilled") collected.push(...gsi.value);
+      else problems.push("国土地理院の避難場所データを取得できませんでした。");
+
+      // 手動で追加した点は残す。取得に失敗した側の既存データも残す。
+      const keepOld = state.pois.filter((p) =>
+        (p.src === "osm" && osm.status !== "fulfilled") || (p.src === "gsi" && gsi.status !== "fulfilled"));
+      state.pois = [...collected, ...keepOld, ...custom];
+      render();
+      el("collectButton").disabled = false;
+
+      if (problems.length) {
+        showMessage("error", problems.join("<br>"));
+      } else {
+        showMessage("ok", `${collected.length}件の公開データを集めました。不要な点はタップして削除できます。`);
+      }
+    }
+
+    function download() {
+      const data = {
+        generatedAt: Date.now(),
+        center: state.center.map((v) => Number(v.toFixed(6))),
+        radius: state.radius,
+        attribution: [
+          "トイレ・AED・駐車場: © OpenStreetMap contributors (ODbL)",
+          "避難場所: 国土地理院 指定緊急避難場所データ"
+        ],
+        pois: state.pois
+      };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "pois.json";
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    async function loadExisting(file) {
+      try {
+        const data = JSON.parse(await file.text());
+        if (!Array.isArray(data.pois)) throw new Error("pois がありません");
+        state.pois = data.pois;
+        if (Array.isArray(data.center)) setCenter(data.center);
+        if (data.radius) {
+          state.radius = data.radius;
+          el("radius").value = String(data.radius);
+          radiusCircle.setRadius(data.radius);
+        }
+        map.fitBounds(radiusCircle.getBounds());
+        render();
+        showMessage("ok", `${data.pois.length}件を読み込みました。`);
+      } catch (error) {
+        showMessage("error", `pois.json を読み込めませんでした: ${escapeHtml(error.message)}`);
+      }
+    }
+
+    // ---- UI ----
+    CUSTOM_CATEGORIES.forEach((k) => {
+      const opt = document.createElement("option");
+      opt.value = k;
+      opt.textContent = CATEGORIES[k].label;
+      el("customCategory").appendChild(opt);
+    });
+
+    map.on("click", (ev) => {
+      const latlng = [ev.latlng.lat, ev.latlng.lng];
+      if (!addMode) {
+        setCenter(latlng);
+        return;
+      }
+      const cat = el("customCategory").value;
+      const name = el("customName").value.trim() || CATEGORIES[cat].label;
+      state.pois.push({
+        id: `custom-${Date.now()}`,
+        cat,
+        name,
+        lat: Number(latlng[0].toFixed(6)),
+        lng: Number(latlng[1].toFixed(6)),
+        note: "",
+        src: "custom"
+      });
+      render();
+    });
+
+    el("radius").addEventListener("change", () => {
+      state.radius = Number(el("radius").value);
+      radiusCircle.setRadius(state.radius);
+    });
+    el("collectButton").addEventListener("click", collect);
+    el("addModeButton").addEventListener("click", () => {
+      addMode = !addMode;
+      el("addModeButton").setAttribute("aria-pressed", String(addMode));
+      el("addModeButton").textContent = addMode ? "追加モード ON（タップで追加）" : "追加モード";
+    });
+    el("downloadButton").addEventListener("click", download);
+    el("loadFile").addEventListener("change", (ev) => {
+      if (ev.target.files[0]) loadExisting(ev.target.files[0]);
+    });
+
+    render();
+  </script>
+</body>
+</html>
